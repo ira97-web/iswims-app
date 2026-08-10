@@ -17,6 +17,7 @@ export default function App() {
   const [publicModal, setPublicModal] = useState(null);
   const [activeTab, setActiveTab] = useState('HUB');
 
+  // Registration & Profile Fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nama, setNama] = useState('');
@@ -25,7 +26,7 @@ export default function App() {
   const [noTel, setNoTel] = useState('');
   const [fakulti, setFakulti] = useState('FST');
   const [programJabatan, setProgramJabatan] = useState('');
-  const [senaraiMakmal, setSenaraiMakmal] = useState(['']);
+  const [senaraiMakmal, setSenaraiMakmal] = useState(['']); // Array of up to 5 labs
   const [tapakPengumpulan, setTapakPengumpulan] = useState('');
   const [role, setRole] = useState('Penjana');
   const [profile, setProfile] = useState(null);
@@ -74,6 +75,38 @@ export default function App() {
     const { data, error } = await supabase.from('rekod_sisa').select('*').order('created_at', { ascending: false });
     if (error) console.error(error);
     else setAllWasteRecords(data || []);
+  }
+
+  // Cascading Handlers
+  function handleFakultiChange(newFakulti) {
+    setFakulti(newFakulti);
+    setProgramJabatan('');
+    setSenaraiMakmal(['']);
+    setTapakPengumpulan('');
+  }
+
+  function handleProgramChange(newProgram) {
+    setProgramJabatan(newProgram);
+    setSenaraiMakmal(['']);
+  }
+
+  function handleMakmalChange(index, value) {
+    const updated = [...senaraiMakmal];
+    updated[index] = value;
+    setSenaraiMakmal(updated);
+  }
+
+  function handleAddMakmalSlot() {
+    if (senaraiMakmal.length < 5) {
+      setSenaraiMakmal([...senaraiMakmal, '']);
+    }
+  }
+
+  function handleRemoveMakmalSlot(index) {
+    if (senaraiMakmal.length > 1) {
+      const updated = senaraiMakmal.filter((_, idx) => idx !== index);
+      setSenaraiMakmal(updated);
+    }
   }
 
   async function handleVerifyStatus(idSisa, newStatus) {
@@ -159,10 +192,17 @@ export default function App() {
     if (authError) alert('Registration failed: ' + authError.message);
     else if (authData?.user) {
       await supabase.from('profiles').upsert([{
-        id: authData.user.id, ukmper: ukmper.toUpperCase(), nama: nama.toUpperCase(),
-        email: email.toLowerCase(), jawatan, no_tel: formatPhoneNumber(noTel),
-        fakulti, program_jabatan: programJabatan, senarai_makmal: validMakmalList,
-        tapak_pengumpulan: tapakPengumpulan, role
+        id: authData.user.id,
+        ukmper: ukmper.toUpperCase(),
+        nama: nama.toUpperCase(),
+        email: email.toLowerCase(),
+        jawatan,
+        no_tel: formatPhoneNumber(noTel),
+        fakulti,
+        program_jabatan: programJabatan,
+        senarai_makmal: validMakmalList,
+        tapak_pengumpulan: tapakPengumpulan,
+        role
       }]);
       alert('Akaun berjaya didaftarkan!');
       setIsRegistering(false);
@@ -177,10 +217,17 @@ export default function App() {
     setLoading(true);
     const validMakmalList = senaraiMakmal.filter((m) => m.trim() !== '');
     const { error } = await supabase.from('profiles').upsert([{
-      id: session.user.id, email: session.user.email.toLowerCase(),
-      nama: nama.toUpperCase(), ukmper: ukmper.toUpperCase(), jawatan,
-      no_tel: formatPhoneNumber(noTel), fakulti, program_jabatan: programJabatan,
-      senarai_makmal: validMakmalList, tapak_pengumpulan: tapakPengumpulan, role
+      id: session.user.id,
+      email: session.user.email.toLowerCase(),
+      nama: nama.toUpperCase(),
+      ukmper: ukmper.toUpperCase(),
+      jawatan,
+      no_tel: formatPhoneNumber(noTel),
+      fakulti,
+      program_jabatan: programJabatan,
+      senarai_makmal: validMakmalList,
+      tapak_pengumpulan: tapakPengumpulan,
+      role
     }]);
     if (error) alert('Gagal simpan profil: ' + error.message);
     else {
@@ -207,6 +254,7 @@ export default function App() {
     <div style={!session ? styles.loginWrapper : styles.container}>
       <style>{`html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; }`}</style>
 
+      {/* PUBLIC NAVBAR */}
       {!session && (
         <nav style={styles.publicNav}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -221,6 +269,7 @@ export default function App() {
         </nav>
       )}
 
+      {/* AUTHENTICATED HEADER */}
       {session && (
         <header style={styles.headerBar}>
           <div style={styles.profileLeftGroup}>
@@ -240,40 +289,160 @@ export default function App() {
         </header>
       )}
 
+      {/* LOGIN / REGISTER CONTAINER */}
       {!session ? (
         <div style={styles.loginCard}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <img src="/iswims-logo.png" alt="i-SWIMS Logo" style={{ height: '120px' }} />
           </div>
+
           <form onSubmit={isRegistering ? handleRegister : handleLogin} style={styles.form}>
             {isRegistering && (
               <>
-                <input type="text" placeholder="NAMA PENUH" value={nama} onChange={(e) => setNama(e.target.value.toUpperCase())} required style={styles.input} />
-                <input type="text" placeholder="UKMPER" value={ukmper} onChange={(e) => setUkmper(e.target.value.toUpperCase())} required style={styles.input} />
+                {/* 1. NAMA PENUH */}
+                <input 
+                  type="text" 
+                  placeholder="NAMA PENUH" 
+                  value={nama} 
+                  onChange={(e) => setNama(e.target.value.toUpperCase())} 
+                  required 
+                  style={{ ...styles.input, textTransform: 'uppercase' }} 
+                />
+
+                {/* 2. UKMPER */}
+                <input 
+                  type="text" 
+                  placeholder="UKMPER / NO. MATRIK" 
+                  value={ukmper} 
+                  onChange={(e) => setUkmper(e.target.value.toUpperCase())} 
+                  required 
+                  style={{ ...styles.input, textTransform: 'uppercase' }} 
+                />
+
+                {/* 3. JAWATAN */}
                 <select value={jawatan} onChange={(e) => setJawatan(e.target.value)} required style={styles.input}>
                   <option value="">-- PILIH JAWATAN --</option>
-                  {jawatanList.map((j) => <option key={j} value={j}>{j}</option>)}
+                  {jawatanList.map((j) => (
+                    <option key={j} value={j}>{j}</option>
+                  ))}
                 </select>
-                <input type="text" placeholder="NO. TELEFON" value={noTel} onChange={(e) => setNoTel(formatPhoneNumber(e.target.value))} required style={styles.input} />
-                <select value={fakulti} onChange={(e) => { setFakulti(e.target.value); setProgramJabatan(''); }} style={styles.input}>
-                  {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
-                </select>
-                <select value={programJabatan} onChange={(e) => setProgramJabatan(e.target.value)} required style={styles.input}>
-                  <option value="">-- PILIH PROGRAM / JABATAN --</option>
-                  {availablePrograms.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
+
+                {/* 4. NO. TELEFON */}
+                <input 
+                  type="text" 
+                  placeholder="NO. TELEFON (e.g. 018-3599295)" 
+                  value={noTel} 
+                  onChange={(e) => setNoTel(formatPhoneNumber(e.target.value))} 
+                  required 
+                  style={styles.input} 
+                />
+
+                {/* 5. FAKULTI / INSTITUSI / PUSAT */}
+                <div>
+                  <label style={styles.label}>Fakulti / Institusi / Pusat</label>
+                  <select value={fakulti} onChange={(e) => handleFakultiChange(e.target.value)} required style={styles.input}>
+                    <option value="">-- PILIH FAKULTI / INSTITUSI / PUSAT --</option>
+                    {Object.keys(programData).map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 6. PROGRAM / JABATAN / UNIT */}
+                <div>
+                  <label style={styles.label}>Program / Jabatan / Unit</label>
+                  <select value={programJabatan} onChange={(e) => handleProgramChange(e.target.value)} required style={styles.input}>
+                    <option value="">-- PILIH PROGRAM / JABATAN / UNIT --</option>
+                    {availablePrograms.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 7. SENARAI MAKMAL (MAKSIMUM 5 SLOT) */}
+                <div style={{ backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold' }}>🧪 MAKMAL (MAKSIMUM 5 SLOT)</span>
+                    {senaraiMakmal.length < 5 && (
+                      <button type="button" onClick={handleAddMakmalSlot} style={{ ...styles.smallButton, backgroundColor: '#28a745' }}>
+                        + Slot
+                      </button>
+                    )}
+                  </div>
+                  {senaraiMakmal.map((labVal, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                      <select value={labVal} onChange={(e) => handleMakmalChange(idx, e.target.value)} required={idx === 0} style={styles.input}>
+                        <option value="">-- PILIH MAKMAL {idx + 1} --</option>
+                        {availableLabs.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                      {senaraiMakmal.length > 1 && (
+                        <button type="button" onClick={() => handleRemoveMakmalSlot(idx)} style={{ ...styles.smallButton, backgroundColor: '#dc3545' }}>
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 8. TEMPAT / TAPAK PENGUMPULAN SISA */}
+                <div>
+                  <label style={styles.label}>Tempat / Tapak Pengumpulan Sisa</label>
+                  <select value={tapakPengumpulan} onChange={(e) => setTapakPengumpulan(e.target.value)} required style={styles.input}>
+                    <option value="">-- PILIH TEMPAT PENGUMPULAN --</option>
+                    {availableLocations.map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 9. PERANAN PENGGUNA */}
+                <div>
+                  <label style={styles.label}>Peranan Pengguna</label>
+                  <select value={role} onChange={(e) => setRole(e.target.value)} style={styles.input}>
+                    <option value="Penjana">Penjana Sisa (Lab User)</option>
+                    <option value="JKKP">JKKP Bangunan</option>
+                    <option value="Penyelaras">Penyelaras BT</option>
+                    <option value="ROSH">ROSH-UKM Admin</option>
+                  </select>
+                </div>
               </>
             )}
-            <input type="email" placeholder="E-mel Rasmi UKM" value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} required style={styles.input} />
-            <input type="password" placeholder="Kata Laluan" value={password} onChange={(e) => setPassword(e.target.value)} required style={styles.input} />
-            <button type="submit" disabled={loading} style={styles.button}>{loading ? 'Memproses...' : isRegistering ? 'Daftar Pengguna' : 'Log Masuk'}</button>
+
+            {/* EMAIL & PASSWORD */}
+            <input 
+              type="email" 
+              placeholder="E-mel Rasmi UKM (lowercase)" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value.toLowerCase())} 
+              required 
+              style={{ ...styles.input, textTransform: 'lowercase' }} 
+            />
+            <input 
+              type="password" 
+              placeholder="Kata Laluan" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              required 
+              style={styles.input} 
+            />
+
+            <button type="submit" disabled={loading} style={styles.button}>
+              {loading ? 'Memproses...' : isRegistering ? 'Daftar Pengguna' : 'Log Masuk'}
+            </button>
           </form>
+
           <p style={{ marginTop: '15px', textAlign: 'center', fontSize: '13px' }}>
-            <span onClick={() => setIsRegistering(!isRegistering)} style={styles.link}>{isRegistering ? 'Log Masuk di sini' : 'Daftar Akaun'}</span>
+            {isRegistering ? 'Sudah ada akaun?' : 'Belum ada akaun?'}{' '}
+            <span onClick={() => setIsRegistering(!isRegistering)} style={styles.link}>
+              {isRegistering ? 'Log Masuk di sini' : 'Daftar Akaun'}
+            </span>
           </p>
         </div>
       ) : (
         <div>
+          {/* TAB ROUTING */}
           {activeTab === 'HUB' && (
             <div style={styles.portalGrid}>
               <div onClick={() => handleNavigate('PENJANA', 'Penjana')} style={{ ...styles.portalCard, borderColor: '#28a745' }}>

@@ -218,6 +218,10 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
       totKaca += (r.peralatan_kaca_kg || 0);
     });
 
+    const signatureElement = profile?.tandatangan_base64 
+      ? `<img src="${profile.tandatangan_base64}" style="height: 45px; max-width: 140px; object-fit: contain; vertical-align: middle;" />`
+      : `___________________________`;
+
     const htmlContent = `
       <html>
         <head>
@@ -356,7 +360,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
               <td>
                 <strong style="font-size: 13px;">Disediakan oleh:</strong>
                 <table class="sig-line-table">
-                  <tr><td class="sig-line-label">Tandatangan</td><td>: ___________________________</td></tr>
+                  <tr><td class="sig-line-label">Tandatangan</td><td>: ${signatureElement}</td></tr>
                   <tr><td class="sig-line-label">Nama</td><td>: <strong>${profile?.nama || '-'}</strong></td></tr>
                   <tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${profile?.ukmper || '-'}</strong></td></tr>
                   <tr><td class="sig-line-label">Jawatan</td><td>: <strong>${profile?.jawatan || '-'}</strong></td></tr>

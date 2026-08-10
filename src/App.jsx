@@ -17,18 +17,19 @@ export default function App() {
   const [publicModal, setPublicModal] = useState(null);
   const [activeTab, setActiveTab] = useState('HUB');
 
-  // Registration & Profile Fields
+  // Profile State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nama, setNama] = useState('');
   const [ukmper, setUkmper] = useState('');
   const [jawatan, setJawatan] = useState('');
   const [noTel, setNoTel] = useState('');
-  const [fakulti, setFakulti] = useState('FST');
+  const [fakulti, setFakulti] = useState('');
   const [programJabatan, setProgramJabatan] = useState('');
-  const [senaraiMakmal, setSenaraiMakmal] = useState(['']); // Array of up to 5 labs
+  const [senaraiMakmal, setSenaraiMakmal] = useState(['']);
   const [tapakPengumpulan, setTapakPengumpulan] = useState('');
-  const [role, setRole] = useState('Penjana');
+  const [role, setRole] = useState('');
+  const [tandatangan, setTandatangan] = useState(''); // Base64 string of signature image
   const [profile, setProfile] = useState(null);
   const [allWasteRecords, setAllWasteRecords] = useState([]);
 
@@ -68,6 +69,7 @@ export default function App() {
       }
       if (data.tapak_pengumpulan) setTapakPengumpulan(data.tapak_pengumpulan);
       if (data.role) setRole(data.role);
+      if (data.tandatangan_base64) setTandatangan(data.tandatangan_base64);
     }
   }
 
@@ -77,7 +79,6 @@ export default function App() {
     else setAllWasteRecords(data || []);
   }
 
-  // Cascading Handlers
   function handleFakultiChange(newFakulti) {
     setFakulti(newFakulti);
     setProgramJabatan('');
@@ -106,6 +107,22 @@ export default function App() {
     if (senaraiMakmal.length > 1) {
       const updated = senaraiMakmal.filter((_, idx) => idx !== index);
       setSenaraiMakmal(updated);
+    }
+  }
+
+  // Digital Signature File Upload Handler
+  function handleSignatureUpload(e) {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 1024 * 1024) {
+        alert('Saiz fail tandatangan mestilah bawah 1MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTandatangan(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   }
 
@@ -202,7 +219,8 @@ export default function App() {
         program_jabatan: programJabatan,
         senarai_makmal: validMakmalList,
         tapak_pengumpulan: tapakPengumpulan,
-        role
+        role,
+        tandatangan_base64: tandatangan
       }]);
       alert('Akaun berjaya didaftarkan!');
       setIsRegistering(false);
@@ -227,7 +245,8 @@ export default function App() {
       program_jabatan: programJabatan,
       senarai_makmal: validMakmalList,
       tapak_pengumpulan: tapakPengumpulan,
-      role
+      role,
+      tandatangan_base64: tandatangan
     }]);
     if (error) alert('Gagal simpan profil: ' + error.message);
     else {
@@ -289,7 +308,113 @@ export default function App() {
         </header>
       )}
 
-      {/* LOGIN / REGISTER CONTAINER */}
+      {/* EDIT PROFILE FORM CARD */}
+      {session && isEditingProfile && (
+        <div style={{ ...styles.card, marginBottom: '20px' }}>
+          <h3 style={{ marginTop: 0, color: '#0056b3' }}>✏️ Kemaskini Profil & Makmal Pengurusan</h3>
+          <form onSubmit={handleSaveProfile} style={styles.form}>
+            <div style={styles.gridTwo}>
+              <div>
+                <label style={styles.label}>Nama Penuh</label>
+                <input type="text" value={nama} onChange={(e) => setNama(e.target.value.toUpperCase())} required style={styles.input} />
+              </div>
+              <div>
+                <label style={styles.label}>UKMPer / No. Matrik</label>
+                <input type="text" value={ukmper} onChange={(e) => setUkmper(e.target.value.toUpperCase())} required style={styles.input} />
+              </div>
+            </div>
+
+            <div style={styles.gridTwo}>
+              <div>
+                <label style={styles.label}>Jawatan</label>
+                <select value={jawatan} onChange={(e) => setJawatan(e.target.value)} required style={styles.input}>
+                  <option value="">-- PILIH JAWATAN --</option>
+                  {jawatanList.map((j) => <option key={j} value={j}>{j}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={styles.label}>No. Telefon</label>
+                <input type="text" value={noTel} onChange={(e) => setNoTel(formatPhoneNumber(e.target.value))} required style={styles.input} />
+              </div>
+            </div>
+
+            <div style={styles.gridTwo}>
+              <div>
+                <label style={styles.label}>Fakulti / Institusi / Pusat</label>
+                <select value={fakulti} onChange={(e) => handleFakultiChange(e.target.value)} required style={styles.input}>
+                  <option value="">-- PILIH FAKULTI --</option>
+                  {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={styles.label}>Program / Jabatan / Unit</label>
+                <select value={programJabatan} onChange={(e) => handleProgramChange(e.target.value)} required style={styles.input}>
+                  <option value="">-- PILIH PROGRAM / JABATAN --</option>
+                  {availablePrograms.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e9ecef' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ ...styles.label, margin: 0 }}>🧪 Senarai Makmal Penyeliaan (Maksimum 5 Makmal)</label>
+                {senaraiMakmal.length < 5 && (
+                  <button type="button" onClick={handleAddMakmalSlot} style={{ ...styles.smallButton, backgroundColor: '#28a745' }}>+ Tambah Makmal</button>
+                )}
+              </div>
+              {senaraiMakmal.map((labVal, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <select value={labVal} onChange={(e) => handleMakmalChange(idx, e.target.value)} required={idx === 0} style={styles.input}>
+                    <option value="">-- PILIH MAKMAL {idx + 1} --</option>
+                    {availableLabs.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  {senaraiMakmal.length > 1 && (
+                    <button type="button" onClick={() => handleRemoveMakmalSlot(idx)} style={{ ...styles.smallButton, backgroundColor: '#dc3545' }}>✕</button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div style={styles.gridTwo}>
+              <div>
+                <label style={styles.label}>Tapak Pengumpulan Sisa</label>
+                <select value={tapakPengumpulan} onChange={(e) => setTapakPengumpulan(e.target.value)} required style={styles.input}>
+                  <option value="">-- PILIH TAPAK PENGUMPULAN --</option>
+                  {availableLocations.map((l) => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={styles.label}>Peranan Pengguna</label>
+                <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
+                  <option value="">-- PILIH PERANAN --</option>
+                  <option value="Penjana">Penjana Sisa (Lab User)</option>
+                  <option value="JKKP">JKKP Bangunan</option>
+                  <option value="Penyelaras">Penyelaras BT</option>
+                  <option value="ROSH">ROSH-UKM Admin</option>
+                </select>
+              </div>
+            </div>
+
+            {/* DIGITAL SIGNATURE UPLOAD FIELD */}
+            <div style={{ backgroundColor: '#eef2f5', padding: '12px', borderRadius: '6px', border: '1px solid #ced4da' }}>
+              <label style={styles.label}>🖋️ Muat Naik Tandatangan Digital (PNG / JPG, Bawah 1MB)</label>
+              <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleSignatureUpload} style={styles.input} />
+              {tandatangan && (
+                <div style={{ marginTop: '10px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#555', display: 'block', marginBottom: '4px' }}>Pratonton Tandatangan Current:</span>
+                  <img src={tandatangan} alt="Digital Signature Preview" style={{ height: '50px', border: '1px solid #ccc', backgroundColor: '#fff', padding: '4px', borderRadius: '4px' }} />
+                </div>
+              )}
+            </div>
+
+            <button type="submit" disabled={loading} style={{ ...styles.button, backgroundColor: '#28a745' }}>
+              {loading ? 'Menyimpan...' : 'Simpan Perubahan Profil'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* LOGIN / REGISTER FORM */}
       {!session ? (
         <div style={styles.loginCard}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -299,134 +424,80 @@ export default function App() {
           <form onSubmit={isRegistering ? handleRegister : handleLogin} style={styles.form}>
             {isRegistering && (
               <>
-                {/* 1. NAMA PENUH */}
-                <input 
-                  type="text" 
-                  placeholder="NAMA PENUH" 
-                  value={nama} 
-                  onChange={(e) => setNama(e.target.value.toUpperCase())} 
-                  required 
-                  style={{ ...styles.input, textTransform: 'uppercase' }} 
-                />
-
-                {/* 2. UKMPER */}
-                <input 
-                  type="text" 
-                  placeholder="UKMPER / NO. MATRIK" 
-                  value={ukmper} 
-                  onChange={(e) => setUkmper(e.target.value.toUpperCase())} 
-                  required 
-                  style={{ ...styles.input, textTransform: 'uppercase' }} 
-                />
-
-                {/* 3. JAWATAN */}
+                <input type="text" placeholder="NAMA PENUH" value={nama} onChange={(e) => setNama(e.target.value.toUpperCase())} required style={{ ...styles.input, textTransform: 'uppercase' }} />
+                <input type="text" placeholder="UKMPER / NO. MATRIK" value={ukmper} onChange={(e) => setUkmper(e.target.value.toUpperCase())} required style={{ ...styles.input, textTransform: 'uppercase' }} />
+                
                 <select value={jawatan} onChange={(e) => setJawatan(e.target.value)} required style={styles.input}>
                   <option value="">-- PILIH JAWATAN --</option>
-                  {jawatanList.map((j) => (
-                    <option key={j} value={j}>{j}</option>
-                  ))}
+                  {jawatanList.map((j) => <option key={j} value={j}>{j}</option>)}
                 </select>
 
-                {/* 4. NO. TELEFON */}
-                <input 
-                  type="text" 
-                  placeholder="NO. TELEFON (e.g. 018-3599295)" 
-                  value={noTel} 
-                  onChange={(e) => setNoTel(formatPhoneNumber(e.target.value))} 
-                  required 
-                  style={styles.input} 
-                />
+                <input type="text" placeholder="NO. TELEFON (e.g. 018-3599295)" value={noTel} onChange={(e) => setNoTel(formatPhoneNumber(e.target.value))} required style={styles.input} />
 
-                {/* 5. FAKULTI / INSTITUSI / PUSAT */}
                 <div>
                   <label style={styles.label}>Fakulti / Institusi / Pusat</label>
                   <select value={fakulti} onChange={(e) => handleFakultiChange(e.target.value)} required style={styles.input}>
                     <option value="">-- PILIH FAKULTI / INSTITUSI / PUSAT --</option>
-                    {Object.keys(programData).map((f) => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
+                    {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
 
-                {/* 6. PROGRAM / JABATAN / UNIT */}
                 <div>
                   <label style={styles.label}>Program / Jabatan / Unit</label>
                   <select value={programJabatan} onChange={(e) => handleProgramChange(e.target.value)} required style={styles.input}>
                     <option value="">-- PILIH PROGRAM / JABATAN / UNIT --</option>
-                    {availablePrograms.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
+                    {availablePrograms.map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
 
-                {/* 7. SENARAI MAKMAL (MAKSIMUM 5 SLOT) */}
                 <div style={{ backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 'bold' }}>🧪 MAKMAL (MAKSIMUM 5 SLOT)</span>
                     {senaraiMakmal.length < 5 && (
-                      <button type="button" onClick={handleAddMakmalSlot} style={{ ...styles.smallButton, backgroundColor: '#28a745' }}>
-                        + Slot
-                      </button>
+                      <button type="button" onClick={handleAddMakmalSlot} style={{ ...styles.smallButton, backgroundColor: '#28a745' }}>+ Slot</button>
                     )}
                   </div>
                   {senaraiMakmal.map((labVal, idx) => (
                     <div key={idx} style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
                       <select value={labVal} onChange={(e) => handleMakmalChange(idx, e.target.value)} required={idx === 0} style={styles.input}>
                         <option value="">-- PILIH MAKMAL {idx + 1} --</option>
-                        {availableLabs.map((m) => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
+                        {availableLabs.map((m) => <option key={m} value={m}>{m}</option>)}
                       </select>
                       {senaraiMakmal.length > 1 && (
-                        <button type="button" onClick={() => handleRemoveMakmalSlot(idx)} style={{ ...styles.smallButton, backgroundColor: '#dc3545' }}>
-                          ✕
-                        </button>
+                        <button type="button" onClick={() => handleRemoveMakmalSlot(idx)} style={{ ...styles.smallButton, backgroundColor: '#dc3545' }}>✕</button>
                       )}
                     </div>
                   ))}
                 </div>
 
-                {/* 8. TEMPAT / TAPAK PENGUMPULAN SISA */}
                 <div>
                   <label style={styles.label}>Tempat / Tapak Pengumpulan Sisa</label>
                   <select value={tapakPengumpulan} onChange={(e) => setTapakPengumpulan(e.target.value)} required style={styles.input}>
                     <option value="">-- PILIH TEMPAT PENGUMPULAN --</option>
-                    {availableLocations.map((l) => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
+                    {availableLocations.map((l) => <option key={l} value={l}>{l}</option>)}
                   </select>
                 </div>
 
-                {/* 9. PERANAN PENGGUNA */}
                 <div>
                   <label style={styles.label}>Peranan Pengguna</label>
-                  <select value={role} onChange={(e) => setRole(e.target.value)} style={styles.input}>
+                  <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
+                    <option value="">-- PILIH PERANAN PENGGUNA --</option>
                     <option value="Penjana">Penjana Sisa (Lab User)</option>
                     <option value="JKKP">JKKP Bangunan</option>
                     <option value="Penyelaras">Penyelaras BT</option>
                     <option value="ROSH">ROSH-UKM Admin</option>
                   </select>
                 </div>
+
+                <div style={{ backgroundColor: '#eef2f5', padding: '10px', borderRadius: '4px', border: '1px dashed #ccc' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold' }}>🖋️ Tandatangan Digital (Opsional)</label>
+                  <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleSignatureUpload} style={styles.input} />
+                </div>
               </>
             )}
 
-            {/* EMAIL & PASSWORD */}
-            <input 
-              type="email" 
-              placeholder="E-mel Rasmi UKM (lowercase)" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value.toLowerCase())} 
-              required 
-              style={{ ...styles.input, textTransform: 'lowercase' }} 
-            />
-            <input 
-              type="password" 
-              placeholder="Kata Laluan" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              required 
-              style={styles.input} 
-            />
+            <input type="email" placeholder="E-mel Rasmi UKM (lowercase)" value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} required style={{ ...styles.input, textTransform: 'lowercase' }} />
+            <input type="password" placeholder="Kata Laluan" value={password} onChange={(e) => setPassword(e.target.value)} required style={styles.input} />
 
             <button type="submit" disabled={loading} style={styles.button}>
               {loading ? 'Memproses...' : isRegistering ? 'Daftar Pengguna' : 'Log Masuk'}
@@ -442,7 +513,7 @@ export default function App() {
         </div>
       ) : (
         <div>
-          {/* TAB ROUTING */}
+          {/* PORTAL ROUTER */}
           {activeTab === 'HUB' && (
             <div style={styles.portalGrid}>
               <div onClick={() => handleNavigate('PENJANA', 'Penjana')} style={{ ...styles.portalCard, borderColor: '#28a745' }}>

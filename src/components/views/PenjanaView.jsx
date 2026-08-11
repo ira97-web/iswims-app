@@ -108,39 +108,80 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     const fakultiCode = profile?.fakulti || 'FST';
     const year = new Date().getFullYear();
 
-    if (editingWasteId) {
-      const item = wasteItems[0];
-      const payload = {
-        nama_makmal: sisaMakmal,
-        kategori_makmal: kategoriMakmal,
-        siri_pelupusan: siriPelupusan,
-        tarikh_pelupusan: tarikhPelupusan,
-        kod_sw: item.kodSw,
-        nama_buangan: item.namaBuangan.toUpperCase(),
-        penjelasan_kod_sw: penjelasanKod,
-        fakulti: fakultiCode,
-        status: 'SUBMITTED',
-        catatan_semakan: null
-      };
+    // Inside handleAddOrUpdateWaste in src/components/views/PenjanaView.jsx:
+if (editingWasteId) {
+  // Single Item Update
+  const item = wasteItems[0];
+  const payload = {
+    nama_makmal: sisaMakmal,
+    kategori_makmal: kategoriMakmal,
+    siri_pelupusan: siriPelupusan,
+    tarikh_pelupusan: tarikhPelupusan,
+    kod_sw: item.kodSw,
+    nama_buangan: item.namaBuangan.toUpperCase(),
+    penjelasan_kod_sw: penjelasanKod,
+    fakulti: fakultiCode,
+    status: 'SUBMITTED',
+    catatan_semakan: null
+  };
 
-      if (item.kodSw === 'SW409') {
-        payload.botol_2_5l_kosong = parseInt(item.botol25LKosong, 10) || 0;
-        payload.botol_4_0l_kosong = parseInt(item.botol40LKosong, 10) || 0;
-        payload.lain_lain_kg = parseFloat(item.lainLainKg) || 0;
-        payload.peralatan_kaca_kg = parseFloat(item.peralatanKacaKg) || 0;
-      } else {
-        payload.botol_2_5l_kimia = parseInt(item.botol25L, 10) || 0;
-        payload.botol_4_0l_kimia = parseInt(item.botol40L, 10) || 0;
-        payload.kilogram_kimia = parseFloat(item.kilogramKimia) || 0;
-      }
+  if (item.kodSw === 'SW409') {
+    payload.botol_2_5l_kosong = parseInt(item.botol25LKosong, 10) || 0;
+    payload.botol_4_0l_kosong = parseInt(item.botol40LKosong, 10) || 0;
+    payload.lain_lain_kg = parseFloat(item.lainLainKg) || 0;
+    payload.peralatan_kaca_kg = parseFloat(item.peralatanKacaKg) || 0;
+  } else {
+    payload.botol_2_5l_kimia = parseInt(item.botol25L, 10) || 0;
+    payload.botol_4_0l_kimia = parseInt(item.botol40L, 10) || 0;
+    payload.kilogram_kimia = parseFloat(item.kilogramKimia) || 0;
+  }
 
-      const { error } = await supabase.from('rekod_sisa').update(payload).eq('id_sisa', editingWasteId);
-      if (error) alert('Gagal pinda sisa: ' + error.message);
-      else {
-        alert(`Rekod sisa ${editingWasteId} berjaya dikemaskini!`);
-        resetWasteForm();
-        fetchAllWasteRecords();
-      }
+  const { error } = await supabase.from('rekod_sisa').update(payload).eq('id_sisa', editingWasteId);
+  if (error) alert('Gagal pinda sisa: ' + error.message);
+  else {
+    alert(`Rekod sisa ${editingWasteId} berjaya dikemaskini!`);
+    resetWasteForm();
+    fetchAllWasteRecords();
+  }
+} else {
+  // Batch Multi-item Submission (ID SISA generated automatically by Supabase sequence)
+  const payloads = wasteItems.map((item) => {
+    const payload = {
+      user_id: session.user.id,
+      nama_makmal: sisaMakmal,
+      kategori_makmal: kategoriMakmal,
+      siri_pelupusan: siriPelupusan,
+      tarikh_pelupusan: tarikhPelupusan,
+      kod_sw: item.kodSw,
+      nama_buangan: item.namaBuangan.toUpperCase(),
+      penjelasan_kod_sw: penjelasanKod,
+      fakulti: fakultiCode,
+      status: 'SUBMITTED',
+      catatan_semakan: null
+    };
+
+    if (item.kodSw === 'SW409') {
+      payload.botol_2_5l_kosong = parseInt(item.botol25LKosong, 10) || 0;
+      payload.botol_4_0l_kosong = parseInt(item.botol40LKosong, 10) || 0;
+      payload.lain_lain_kg = parseFloat(item.lainLainKg) || 0;
+      payload.peralatan_kaca_kg = parseFloat(item.peralatanKacaKg) || 0;
+    } else {
+      payload.botol_2_5l_kimia = parseInt(item.botol25L, 10) || 0;
+      payload.botol_4_0l_kimia = parseInt(item.botol40L, 10) || 0;
+      payload.kilogram_kimia = parseFloat(item.kilogramKimia) || 0;
+    }
+    return payload;
+  });
+
+  const { error } = await supabase.from('rekod_sisa').insert(payloads);
+  if (error) alert('Gagal daftar sisa: ' + error.message);
+  else {
+    alert(`Berjaya mendaftarkan ${payloads.length} rekod sisa!`);
+    resetWasteForm();
+    fetchAllWasteRecords();
+  }
+}
+
     } else {
       const payloads = wasteItems.map((item) => {
         const swNumber = item.kodSw.replace(/\D/g, '');

@@ -15,6 +15,11 @@ export function handlePrintRoshWasteLabel(item, profile) {
   const labType = item.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
   const deptCenter = profile?.program_jabatan || 'Unit Sains Kimia';
   const chemicalName = item.nama_buangan || 'ETHANOL';
+  const ukmperVal = profile?.ukmper || '-';
+  const statusVal = item.status || 'SUBMITTED';
+
+  // MULTI-LINE DATA ENCODED INTO QR CODE
+  const qrPayload = `ID SISA: ${wasteId}\nMAKMAL: ${roomLab}\nUKMPER: ${ukmperVal}\nSTATUS: ${statusVal}`;
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -117,7 +122,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
             width: 480px;
           }
 
-          /* 3. QR CODE: SHIFTED INWARD & SCALED TO FIT STRICTLY INSIDE THE CELL BORDER */
+          /* 3. QR CODE */
           .field-qr-code {
             top: 295px;
             right: 48px;
@@ -152,9 +157,9 @@ export function handlePrintRoshWasteLabel(item, profile) {
           <div class="data-overlay field-jabatan">${deptCenter}</div>
           <div class="data-overlay field-nama-bahan">${chemicalName}</div>
 
-          <!-- QR CODE OVERLAY -->
+          <!-- QR CODE OVERLAY (ENCODES ID SISA, MAKMAL, UKMPER & STATUS) -->
           <div class="data-overlay field-qr-code">
-            <img src="https://quickchart.io/qr?text=${encodeURIComponent(wasteId)}&size=100" alt="QR Code" />
+            <img src="https://quickchart.io/qr?text=${encodeURIComponent(qrPayload)}&size=120" alt="QR Code" />
           </div>
         </div>
 

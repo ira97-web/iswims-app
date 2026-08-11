@@ -18,6 +18,10 @@ function buildLabelCanvasHtml(item, profile) {
 
   const qrPayload = `ID SISA: ${wasteId}\nMAKMAL: ${roomLab}\nUKMPER: ${ukmperVal}\nSTATUS: ${statusVal}`;
 
+  // SW430 SDS QR CODE (DISPLAYED ONLY IF SW430 & SDS IS UPLOADED)
+  const isSw430 = cleanCode === 'SW430';
+  const sdsUrl = item.sds_url;
+
   return `
     <div class="label-canvas">
       <img 
@@ -34,9 +38,18 @@ function buildLabelCanvasHtml(item, profile) {
       <div class="data-overlay field-jabatan">${deptCenter}</div>
       <div class="data-overlay field-nama-bahan">${chemicalName}</div>
 
-      <div class="data-overlay field-qr-code">
-        <img src="https://quickchart.io/qr?text=${encodeURIComponent(qrPayload)}&size=120" alt="QR Code" />
+      <!-- PRIMARY MAKLUMAT SISA QR CODE -->
+      <div class="data-overlay ${isSw430 && sdsUrl ? 'field-qr-primary-split' : 'field-qr-code'}">
+        <img src="https://quickchart.io/qr?text=${encodeURIComponent(qrPayload)}&size=100" alt="QR Code" />
       </div>
+
+      <!-- SECONDARY SDS QR CODE (RIGHT BELOW PRIMARY QR FOR SW430) -->
+      ${isSw430 && sdsUrl ? `
+        <div class="data-overlay field-qr-sds-split">
+          <img src="https://quickchart.io/qr?text=${encodeURIComponent(sdsUrl)}&size=100" alt="SDS QR" />
+          <div style="font-size: 2.0mm; font-weight: bold; text-align: center; color: #000; margin-top: 1px;">QR SDS CHEMICAL</div>
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -71,8 +84,15 @@ export function handlePrintRoshWasteLabel(item, profile) {
           .field-jenis-makmal { top: 69.4%; left: 34.6%; font-size: 13px; }
           .field-jabatan { top: 78.0%; left: 34.6%; font-size: 13px; width: 60%; }
           .field-nama-bahan { top: 86.8%; left: 34.6%; font-size: 13px; width: 60%; }
+
           .field-qr-code { top: 52.8%; right: 6.0%; width: 11.0%; height: auto; }
           .field-qr-code img { width: 100%; height: auto; display: block; }
+
+          .field-qr-primary-split { top: 51.5%; right: 6.0%; width: 9.5%; height: auto; }
+          .field-qr-primary-split img { width: 100%; height: auto; display: block; }
+
+          .field-qr-sds-split { top: 71.0%; right: 6.0%; width: 9.5%; height: auto; }
+          .field-qr-sds-split img { width: 100%; height: auto; display: block; }
         </style>
       </head>
       <body>
@@ -86,13 +106,12 @@ export function handlePrintRoshWasteLabel(item, profile) {
   printWindow.document.close();
 }
 
-// 2. BATCH PRINTING: 4 LABELS PER A4 LANDSCAPE PAGE (HORIZONTAL 2x2 GRID)
+// 2. BATCH PRINTING: 4 LABELS PER A4 LANDSCAPE PAGE (2x2 GRID)
 export function handlePrintBatchRoshLabels(items, profile) {
   if (!items || items.length === 0) return;
 
   const printWindow = window.open('', '_blank');
 
-  // Split array of items into groups of 4
   const chunks = [];
   for (let i = 0; i < items.length; i += 4) {
     chunks.push(items.slice(i, i + 4));
@@ -120,7 +139,6 @@ export function handlePrintBatchRoshLabels(items, profile) {
             background: #fff;
           }
           
-          /* A4 LANDSCAPE PAGE CONTAINER: 2 COLUMNS x 2 ROWS */
           .a4-page-landscape {
             width: 289mm;
             height: 201mm;
@@ -132,29 +150,26 @@ export function handlePrintBatchRoshLabels(items, profile) {
             box-sizing: border-box;
           }
 
-          /* INDIVIDUAL LABEL CANVAS INSIDE GRID */
           .label-canvas {
             position: relative;
             width: 100%;
             height: 100%;
-            border: 1px dashed #ccc; /* Light cutting boundary */
+            border: 1px dashed #ccc;
             overflow: hidden;
             background: #fff;
             box-sizing: border-box;
           }
 
-          /* BACKGROUND TEMPLATE FILLS 100% OF THE CARD */
           .bg-template {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: fill; /* Stretches template precisely inside label box */
+            object-fit: fill;
             z-index: 1;
           }
 
-          /* PERCENTAGE-BASED OVERLAYS PRECISELY BOUNDED INSIDE LABEL BOX */
           .data-overlay {
             position: absolute;
             z-index: 10;
@@ -172,8 +187,16 @@ export function handlePrintBatchRoshLabels(items, profile) {
           .field-jabatan { top: 78.0%; left: 34.6%; font-size: 2.8mm; width: 60%; }
           .field-nama-bahan { top: 86.8%; left: 34.6%; font-size: 2.8mm; width: 60%; }
 
+          /* SINGLE PRIMARY QR CODE */
           .field-qr-code { top: 52.8%; right: 6.0%; width: 11.5%; height: auto; }
           .field-qr-code img { width: 100%; height: auto; display: block; }
+
+          /* STACKED QR CODES (FOR SW430 WITH SDS) */
+          .field-qr-primary-split { top: 51.5%; right: 6.0%; width: 9.2%; height: auto; }
+          .field-qr-primary-split img { width: 100%; height: auto; display: block; }
+
+          .field-qr-sds-split { top: 71.0%; right: 6.0%; width: 9.2%; height: auto; }
+          .field-qr-sds-split img { width: 100%; height: auto; display: block; }
         </style>
       </head>
       <body>

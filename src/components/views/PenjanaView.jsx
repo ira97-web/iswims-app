@@ -14,7 +14,6 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   const [tarikhPelupusan, setTarikhPelupusan] = useState('');
   const [penjelasanKod, setPenjelasanKod] = useState('Sisa pelarut organik terpakai');
 
-  // Checkbox selection state for batch PDF/Label generation
   const [selectedWasteIds, setSelectedWasteIds] = useState([]);
 
   const [wasteItems, setWasteItems] = useState([
@@ -26,7 +25,6 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
 
   const myWasteRecords = allWasteRecords.filter((r) => r.user_id === session?.user?.id);
 
-  // Checkbox Selection Handlers
   function toggleSelectWaste(id) {
     if (selectedWasteIds.includes(id)) {
       setSelectedWasteIds(selectedWasteIds.filter((item) => item !== id));
@@ -120,6 +118,52 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     window.scrollTo({ top: 200, behavior: 'smooth' });
   }
 
+  // SDS UPLOAD HANDLER FOR SW430 RECORDS
+  async function handleUploadSds(id_sisa, file) {
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      alert('Sila muatnaik fail format PDF sahaja.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const fileExt = 'pdf';
+      const fileName = `SDS_${id_sisa}_${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('sds-files')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) {
+        alert('Gagal muatnaik SDS. Pastikan bucket "sds-files" telah dicipta di Supabase Storage: ' + uploadError.message);
+        setLoading(false);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('sds-files')
+        .getPublicUrl(fileName);
+
+      const sdsUrl = publicUrlData.publicUrl;
+
+      const { error: dbError } = await supabase
+        .from('rekod_sisa')
+        .update({ sds_url: sdsUrl })
+        .eq('id_sisa', id_sisa);
+
+      if (dbError) {
+        alert('Gagal simpan URL SDS: ' + dbError.message);
+      } else {
+        alert(`Fail SDS untuk sisa ${id_sisa} berjaya dimuatnaik! QR SDS telah dijana.`);
+        fetchAllWasteRecords();
+      }
+    } catch (err) {
+      alert('Ralat muatnaik fail: ' + err.message);
+    }
+    setLoading(false);
+  }
+
   async function handleAddOrUpdateWaste(e) {
     e.preventDefault();
     setLoading(true);
@@ -199,7 +243,6 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     setLoading(false);
   }
 
-  // BULK PRINT BORANG PDF FOR TICKED ITEMS
   function handlePrintSelectedPdf() {
     const selectedRecords = myWasteRecords.filter((r) => selectedWasteIds.includes(r.id_sisa));
     if (selectedRecords.length === 0) {
@@ -408,7 +451,6 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     }
   }
 
-  // BULK BATCH PRINT LABELS (4 PER A4 PAGE) FOR TICKED ITEMS
   function handlePrintSelectedLabels() {
     const selectedRecords = myWasteRecords.filter((r) => selectedWasteIds.includes(r.id_sisa));
     if (selectedRecords.length === 0) {
@@ -582,7 +624,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                     <th style={styles.th}>Nama Bahan</th>
                     <th style={styles.th}>Kuantiti</th>
                     <th style={styles.th}>Tempoh Simpanan</th>
-                    <th style={styles.th}>Status</th>
+                    <th style={styles.th}>Status & Muatnaik SDS</th>
                     <th style={styles.th}>Tindakan</th>
                   </tr>
                 </thead>
@@ -590,6 +632,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                   {myWasteRecords.map((item) => {
                     const daysElapsed = calculateStorageDays(item.created_at);
                     const isChecked = selectedWasteIds.includes(item.id_sisa);
+                    const isSw430 = item.kod_sw === 'SW430';
 
                     return (
                       <tr key={item.id} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : '#fff' }}>
@@ -614,10 +657,39 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                             <span style={{ fontWeight: 'bold', color: '#212529' }}>{daysElapsed} Hari</span>
                           )}
                         </td>
+                        
+                        {/* STATUS & SDS UPLOAD BOX COLUMN */}
                         <td style={styles.td}>
                           <span style={getStatusBadgeStyle(item.status)}>{item.status}</span>
                           {item.catatan_semakan && <div style={{ fontSize: '11px', color: '#dc3545', marginTop: '4px' }}>Catatan: {item.catatan_semakan}</div>}
+
+                          {/* SPECIAL UPLOAD BOX FOR SW430 */}
+                          {isSw430 && (
+                            <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#eef6ff', border: '1px dashed #0056b3', borderRadius: '6px', fontSize: '11px' }}>
+                              <div style={{ fontWeight: 'bold', color: '#0056b3', marginBottom: '4px' }}>📄 Muatnaik SDS (SW430)</div>
+                              {item.sds_url ? (
+                                <div>
+                                  <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ SDS Dimuatnaik</span>
+                                  <div style={{ marginTop: '4px', display: 'flex', gap: '6px' }}>
+                                    <a href={item.sds_url} target="_blank" rel="noreferrer" style={{ color: '#0056b3', textDecoration: 'underline' }}>Lihat SDS</a>
+                                    <label style={{ color: '#dc3545', cursor: 'pointer', textDecoration: 'underline' }}>
+                                      Tukar
+                                      <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => handleUploadSds(item.id_sisa, e.target.files[0])} />
+                                    </label>
+                                  </div>
+                                </div>
+                              ) : (
+                                <input 
+                                  type="file" 
+                                  accept="application/pdf" 
+                                  onChange={(e) => handleUploadSds(item.id_sisa, e.target.files[0])}
+                                  style={{ fontSize: '10px', width: '100%' }}
+                                />
+                              )}
+                            </div>
+                          )}
                         </td>
+
                         <td style={styles.td}>
                           {item.status === 'DIKEMBALIKAN_KE_PENJANA' ? (
                             <button onClick={() => handleEditWasteItem(item)} style={{ ...styles.smallButton, backgroundColor: '#ffc107', color: '#000' }}>✏️ Pinda</button>

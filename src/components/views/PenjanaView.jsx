@@ -118,7 +118,6 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     window.scrollTo({ top: 200, behavior: 'smooth' });
   }
 
-  // SDS UPLOAD HANDLER FOR SW430 RECORDS
   async function handleUploadSds(id_sisa, file) {
     if (!file) return;
     if (file.type !== 'application/pdf') {
@@ -550,7 +549,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                       <option value="SW109">SW109 - Buangan Mengandungi Raksa</option>
                       <option value="SW206">SW206 - Asid Tidak Organik Terpakai</option>
                       <option value="SW301">SW301 - Asid Organik Terpakai (pH ≤ 2)</option>
-                      <option value="SW305">SW305 - Asid Tidak Organik Terpakai</option>
+                      <option value="SW305">SW305 - Minyak Pelincir Terpakai</option>
                       <option value="SW320">SW320 - Buangan Mengandungi Formaldehid</option>
                       <option value="SW322">SW322 - Buangan Pelarut Organik Bukan Terhalogen</option>
                       <option value="SW323">SW323 - Buangan Pelarut Organik Terhalogen</option>
@@ -634,7 +633,6 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                     const isChecked = selectedWasteIds.includes(item.id_sisa);
                     const isSw430 = item.kod_sw === 'SW430';
 
-                    // Check if JKKP has already approved/verified this record
                     const isApprovedByJkkp = item.status === 'DISAHKAN_JKKP' || 
                                              item.status === 'DISAHKAN' || 
                                              item.status === 'SAH' || 

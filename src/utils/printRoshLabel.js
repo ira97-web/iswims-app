@@ -14,7 +14,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
     showCheckboxes: true
   };
 
-  const ptjName = item.fakulti || profile?.fakulti || 'FST';
+  const ptjName = item.fakulti || profile?.fakulti || 'SERI';
   const wasteId = item.id_sisa || 'SERI-2026-15-1950';
   const dateGenerated = formatMalayDate(item.created_at || item.tarikh_pelupusan);
   const roomLab = item.nama_makmal || profile?.senarai_makmal?.[0] || 'Makmal Silikon';
@@ -22,7 +22,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
   const deptCenter = profile?.program_jabatan || 'Pusat Penyelidikan Tenaga Suria';
   const chemicalName = item.nama_buangan || 'ETHANOLAMINE';
 
-  // SVG Hazard Warning Diamonds
+  // Accurate SVG Hazard Warning Diamonds
   function getHazardGraphic(type, hasCheckbox = false) {
     let iconSvg = '';
     let labelText = '';
@@ -30,29 +30,29 @@ export function handlePrintRoshWasteLabel(item, profile) {
     if (type === 'TOKSIK') {
       labelText = 'BAHAN TOKSIK<br/>(BUANGAN)';
       iconSvg = `
-        <svg width="55" height="55" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 8px auto; background: #fff;">
+        <svg width="56" height="56" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 6px auto; background: #fff;">
           <g style="transform: rotate(-45deg); transform-origin: center;">
-            <path d="M50 20 c-11 0 -18 7 -18 18 c0 6 3 10 7 13 v5 h22 v-5 c4 -3 7 -7 7 -13 c0 -11 -7 -18 -18 -18 z" fill="#000"/>
-            <circle cx="43" cy="34" r="3.5" fill="#fff"/>
-            <circle cx="57" cy="34" r="3.5" fill="#fff"/>
-            <path d="M43 51 h14 v4 h-14 z" fill="#fff"/>
-            <path d="M22 22 L78 78 M78 22 L22 78" stroke="#000" stroke-width="4.5"/>
+            <path d="M50 18 c-10 0 -17 7 -17 17 c0 6 3 9 6 12 v4 h22 v-4 c3 -3 6 -6 6 -12 c0 -10 -7 -17 -17 -17 z" fill="#000"/>
+            <circle cx="43" cy="31" r="3" fill="#fff"/>
+            <circle cx="57" cy="31" r="3" fill="#fff"/>
+            <path d="M43 47 h14 v3 h-14 z" fill="#fff"/>
+            <path d="M22 20 L78 76 M78 20 L22 76" stroke="#000" stroke-width="4"/>
           </g>
         </svg>`;
     } else if (type === 'MENGAKIS') {
       labelText = 'BAHAN MENGAKIS<br/>(BUANGAN)';
       iconSvg = `
-        <svg width="55" height="55" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 8px auto; background: #fff;">
+        <svg width="56" height="56" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 6px auto; background: #fff;">
           <g style="transform: rotate(-45deg); transform-origin: center;">
-            <polygon points="12,52 88,52 88,88 12,88" fill="#000"/>
-            <rect x="25" y="20" width="10" height="25" fill="#000" transform="rotate(-20 25 20)"/>
-            <rect x="65" y="20" width="10" height="25" fill="#000" transform="rotate(20 65 20)"/>
+            <polygon points="10,50 90,50 90,90 10,90" fill="#000"/>
+            <rect x="25" y="18" width="8" height="24" fill="#000" transform="rotate(-25 25 18)"/>
+            <rect x="67" y="14" width="8" height="24" fill="#000" transform="rotate(25 67 14)"/>
           </g>
         </svg>`;
     } else if (type === 'PEPEJAL_MUDAH_TERBAKAR') {
       labelText = 'PEPEJAL MUDAH TERBAKAR<br/>(BUANGAN)';
       iconSvg = `
-        <svg width="55" height="55" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 8px auto; background: repeating-linear-gradient(90deg, #e02424, #e02424 6px, #fff 6px, #fff 12px);">
+        <svg width="56" height="56" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 6px auto; background: repeating-linear-gradient(90deg, #e02424, #e02424 6px, #fff 6px, #fff 12px);">
           <g style="transform: rotate(-45deg); transform-origin: center;">
             <path d="M50 15 C45 32 30 38 30 58 C30 70 40 78 50 78 C60 78 70 70 70 58 C70 38 55 32 50 15 Z" fill="#000"/>
           </g>
@@ -60,7 +60,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
     } else if (type === 'CECAIR_MUDAH_TERBAKAR') {
       labelText = 'CECAIR MUDAH TERBAKAR<br/>(BUANGAN)';
       iconSvg = `
-        <svg width="55" height="55" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 8px auto; background: #e02424;">
+        <svg width="56" height="56" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 6px auto; background: #e02424;">
           <g style="transform: rotate(-45deg); transform-origin: center;">
             <path d="M50 15 C45 32 30 38 30 58 C30 70 40 78 50 78 C60 78 70 70 70 58 C70 38 55 32 50 15 Z" fill="#000"/>
           </g>
@@ -68,7 +68,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
     } else if (type === 'CAMPURAN_BERBAHAYA') {
       labelText = 'CAMPURAN PELBAGAI<br/>BAHAN BERBAHAYA<br/>(BUANGAN)';
       iconSvg = `
-        <svg width="55" height="55" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 8px auto; background: #fff;">
+        <svg width="56" height="56" viewBox="0 0 100 100" style="border: 1.5px solid #000; transform: rotate(45deg); margin: 6px auto; background: #fff;">
           <g style="transform: rotate(-45deg); transform-origin: center;">
             <line x1="15" y1="10" x2="15" y2="50" stroke="#000" stroke-width="5"/>
             <line x1="28" y1="10" x2="28" y2="50" stroke="#000" stroke-width="5"/>
@@ -81,16 +81,15 @@ export function handlePrintRoshWasteLabel(item, profile) {
     }
 
     return `
-      <div style="display: flex; align-items: flex-start; gap: 4px; text-align: center; flex: 1;">
-        ${hasCheckbox ? '<div style="width: 14px; height: 14px; border: 2px solid #000; margin-top: 4px; flex-shrink: 0;"></div>' : ''}
-        <div style="flex-grow: 1;">
+      <div style="display: flex; align-items: flex-start; justify-content: center; gap: 4px; text-align: center; flex: 1;">
+        ${hasCheckbox ? '<div style="width: 15px; height: 15px; border: 1.8px solid #000; margin-top: 2px; flex-shrink: 0; background: #fff;"></div>' : ''}
+        <div style="display: flex; flex-direction: column; align-items: center;">
           ${iconSvg}
           <div style="font-size: 7.5px; font-weight: bold; line-height: 1.1; margin-top: 2px;">${labelText}</div>
         </div>
       </div>`;
   }
 
-  // Render Hazard Row
   let hazardsHtml = '';
   if (config.showCheckboxes) {
     const all5Hazards = ['TOKSIK', 'MENGAKIS', 'PEPEJAL_MUDAH_TERBAKAR', 'CECAIR_MUDAH_TERBAKAR', 'CAMPURAN_BERBAHAYA'];
@@ -119,8 +118,8 @@ export function handlePrintRoshWasteLabel(item, profile) {
           }
           .rosh-card {
             width: 100%;
-            max-width: 780px;
-            border: 2.5px solid #000;
+            max-width: 800px;
+            border: 2px solid #000;
             margin: 0 auto;
             box-sizing: border-box;
             background: #fff;
@@ -131,7 +130,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 14px;
+            padding: 8px 14px;
           }
           .ukm-brand {
             display: flex;
@@ -139,7 +138,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
             gap: 10px;
           }
           .ukm-brand img {
-            height: 48px;
+            height: 46px;
             width: auto;
             object-fit: contain;
           }
@@ -156,17 +155,17 @@ export function handlePrintRoshWasteLabel(item, profile) {
           .ptj-id-box {
             text-align: right;
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 1.35;
           }
           .ptj-label {
-            font-weight: normal;
-            color: #666;
+            font-size: 13px;
+            color: #555;
             font-style: italic;
           }
 
           /* 2. GREY TITLE BAR */
           .grey-title-bar {
-            background-color: #d0d0d0;
+            background-color: #d8d8d8;
             border-top: 2px solid #000;
             border-bottom: 2px solid #000;
             display: flex;
@@ -174,9 +173,9 @@ export function handlePrintRoshWasteLabel(item, profile) {
             padding: 6px 14px;
           }
           .sw-code-large {
-            font-size: 30px;
+            font-size: 32px;
             font-weight: 900;
-            width: 170px;
+            width: 180px;
             flex-shrink: 0;
             letter-spacing: 0.5px;
           }
@@ -188,7 +187,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
             font-size: 13px;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
           }
           .sw-title-en {
             font-size: 10.5px;
@@ -200,21 +199,24 @@ export function handlePrintRoshWasteLabel(item, profile) {
           /* 3. HAZARDS ROW */
           .hazards-row {
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             align-items: flex-start;
-            padding: 8px 12px;
+            padding: 10px 10px 8px 10px;
             border-bottom: 2px solid #000;
-            gap: 8px;
           }
 
-          /* 4. METADATA TABLE WITH QR CODE */
+          /* 4. METADATA TABLE WITH FLOATING QR CODE */
+          .meta-table-wrapper {
+            position: relative;
+            width: 100%;
+          }
           .meta-table {
             width: 100%;
             border-collapse: collapse;
           }
           .meta-table td {
             border-bottom: 1.5px solid #000;
-            padding: 6px 10px;
+            padding: 7px 10px;
             vertical-align: middle;
             font-size: 11px;
           }
@@ -222,7 +224,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
             border-bottom: none;
           }
           .label-col {
-            width: 180px;
+            width: 200px;
             border-right: 1.5px solid #000;
           }
           .col-label-ms {
@@ -237,19 +239,26 @@ export function handlePrintRoshWasteLabel(item, profile) {
           .val-col {
             font-weight: bold;
             font-size: 11.5px;
+            padding-left: 12px;
           }
-          .qr-col {
-            width: 115px;
-            border-left: 1.5px solid #000;
+          .qr-absolute-box {
+            position: absolute;
+            right: 12px;
+            top: 8px;
+            width: 100px;
+            height: 100px;
             text-align: center;
-            vertical-align: middle !important;
-            padding: 4px !important;
+          }
+          .qr-absolute-box img {
+            width: 96px;
+            height: 96px;
+            display: block;
           }
 
           /* 5. FOOTER */
           .rosh-footer {
             border-top: 2px solid #000;
-            padding: 6px;
+            padding: 5px;
             text-align: center;
             font-size: 9px;
             font-weight: bold;
@@ -269,10 +278,10 @@ export function handlePrintRoshWasteLabel(item, profile) {
               </div>
             </div>
             <div class="ptj-id-box">
-              <div><span class="ptj-label">Nama PTj/ PTj Name:</span> <strong>${ptjName}</strong></div>
+              <div><span class="ptj-label">Nama PTj/ PTj Name:</span> <strong style="font-size: 14px;">${ptjName}</strong></div>
               <div style="margin-top: 4px;">
                 <strong>ID SISA:</strong><br/>
-                <strong>${wasteId}</strong>
+                <strong style="font-size: 12px;">${wasteId}</strong>
               </div>
             </div>
           </div>
@@ -291,47 +300,50 @@ export function handlePrintRoshWasteLabel(item, profile) {
             ${hazardsHtml}
           </div>
 
-          <!-- 4. METADATA TABLE WITH RIGHT INTEGRATED QR CODE -->
-          <table class="meta-table">
-            <tr>
-              <td class="label-col">
-                <div class="col-label-ms">Tarikh Sisa Dihasilkan</div>
-                <div class="col-label-en">Date Waste Generated</div>
-              </td>
-              <td class="val-col">${dateGenerated}</td>
-              <td class="qr-col" rowspan="3">
-                <img src="https://quickchart.io/qr?text=${encodeURIComponent(wasteId)}&size=110" alt="QR Code" style="width: 100px; height: 100px; display: block; margin: 0 auto;" />
-              </td>
-            </tr>
-            <tr>
-              <td class="label-col">
-                <div class="col-label-ms">Bilik/ Makmal</div>
-                <div class="col-label-en">Room/Laboratory</div>
-              </td>
-              <td class="val-col">${roomLab}</td>
-            </tr>
-            <tr>
-              <td class="label-col">
-                <div class="col-label-ms">Jenis Makmal</div>
-                <div class="col-label-en">Laboratory Type</div>
-              </td>
-              <td class="val-col">${labType}</td>
-            </tr>
-            <tr>
-              <td class="label-col">
-                <div class="col-label-ms">Pusat/ Jabatan</div>
-                <div class="col-label-en">Centre/ Department</div>
-              </td>
-              <td class="val-col" colspan="2">${deptCenter}</td>
-            </tr>
-            <tr>
-              <td class="label-col">
-                <div class="col-label-ms">${config.chemLabelMs}</div>
-                <div class="col-label-en">${config.chemLabelEn}</div>
-              </td>
-              <td class="val-col" colspan="2" style="font-size: 12px;">${chemicalName}</td>
-            </tr>
-          </table>
+          <!-- 4. METADATA TABLE WITH NO VERTICAL DIVIDER BEFORE QR CODE -->
+          <div class="meta-table-wrapper">
+            <div class="qr-absolute-box">
+              <img src="https://quickchart.io/qr?text=${encodeURIComponent(wasteId)}&size=110" alt="QR Code" />
+            </div>
+
+            <table class="meta-table">
+              <tr>
+                <td class="label-col">
+                  <div class="col-label-ms">Tarikh Sisa Dihasilkan</div>
+                  <div class="col-label-en">Date Waste Generated</div>
+                </td>
+                <td class="val-col">${dateGenerated}</td>
+              </tr>
+              <tr>
+                <td class="label-col">
+                  <div class="col-label-ms">Bilik/ Makmal</div>
+                  <div class="col-label-en">Room/Laboratory</div>
+                </td>
+                <td class="val-col">${roomLab}</td>
+              </tr>
+              <tr>
+                <td class="label-col">
+                  <div class="col-label-ms">Jenis Makmal</div>
+                  <div class="col-label-en">Laboratory Type</div>
+                </td>
+                <td class="val-col">${labType}</td>
+              </tr>
+              <tr>
+                <td class="label-col">
+                  <div class="col-label-ms">Pusat/ Jabatan</div>
+                  <div class="col-label-en">Centre/ Department</div>
+                </td>
+                <td class="val-col">${deptCenter}</td>
+              </tr>
+              <tr>
+                <td class="label-col">
+                  <div class="col-label-ms">${config.chemLabelMs}</div>
+                  <div class="col-label-en">${config.chemLabelEn}</div>
+                </td>
+                <td class="val-col" style="font-size: 12px;">${chemicalName}</td>
+              </tr>
+            </table>
+          </div>
 
           <!-- 5. FOOTER BANNER -->
           <div class="rosh-footer">

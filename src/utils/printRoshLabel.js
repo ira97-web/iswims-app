@@ -67,7 +67,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
 
           /* 1. PTJ NAME: POSITIONED RIGHT NEXT TO 'Nama PTj/ PTj Name:' */
           .field-ptj {
-            top: 22px;
+            top: 24px;
             left: 560px;
             font-size: 15px;
             text-align: left;
@@ -76,7 +76,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
           /* 2. ID SISA: CENTERED DIRECTLY BELOW 'Nama PTj/ PTj Name:' */
           .field-id-sisa {
             top: 58px;
-            left: 380px;
+            left: 340px;
             width: 280px;
             font-size: 12px;
             text-align: center;

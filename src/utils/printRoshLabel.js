@@ -3,20 +3,18 @@ import { formatMalayDate } from './helpers';
 export function handlePrintRoshWasteLabel(item, profile) {
   const printWindow = window.open('', '_blank');
   
-  // Format code key (e.g., SW430, SW206)
   const cleanCode = item.kod_sw ? item.kod_sw.replace(/\s+/g, '').toUpperCase() : 'SW430';
   
-  // Dynamic template image path in public/labels/
   const templateImagePath = `/labels/${cleanCode}.png`;
   const fallbackTemplatePath = `/labels/SW430.png`;
 
-  const ptjName = item.fakulti || profile?.fakulti || 'SERI';
-  const wasteId = item.id_sisa || 'SERI-2026-15-1950';
+  const ptjName = item.fakulti || profile?.fakulti || 'FST';
+  const wasteId = item.id_sisa || 'FST-2026-430-37534D0';
   const dateGenerated = formatMalayDate(item.created_at || item.tarikh_pelupusan);
-  const roomLab = item.nama_makmal || profile?.senarai_makmal?.[0] || 'Makmal Silikon';
-  const labType = item.kategori_makmal || 'Makmal Penyelidikan';
-  const deptCenter = profile?.program_jabatan || 'Pusat Penyelidikan Tenaga Suria';
-  const chemicalName = item.nama_buangan || 'ETHANOLAMINE';
+  const roomLab = item.nama_makmal || profile?.senarai_makmal?.[0] || 'Makmal Tahun 2 Oleokimia 2108';
+  const labType = item.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
+  const deptCenter = profile?.program_jabatan || 'Unit Sains Kimia';
+  const chemicalName = item.nama_buangan || 'ETHANOL';
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -36,7 +34,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
             color: #000;
           }
           
-          /* FIXED A5 LANDSCAPE CONTAINER (794px x 559px) */
+          /* FIXED A5 LANDSCAPE CANVAS */
           .label-canvas {
             position: relative;
             width: 794px;
@@ -46,7 +44,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
             background: #fff;
           }
 
-          /* BACKGROUND OFFICIAL ROSH TEMPLATE IMAGE */
+          /* BACKGROUND TEMPLATE */
           .bg-template {
             position: absolute;
             top: 0;
@@ -67,22 +65,26 @@ export function handlePrintRoshWasteLabel(item, profile) {
             word-break: break-word;
           }
 
-          /* FIELD COORDINATES MATCHING ROSH UKM TEMPLATE */
+          /* 1. PTJ NAME: POSITIONED RIGHT NEXT TO 'Nama PTj/ PTj Name:' */
           .field-ptj {
-            top: 28px;
-            right: 40px;
-            font-size: 14px;
-            text-align: right;
+            top: 22px;
+            left: 635px;
+            font-size: 15px;
+            text-align: left;
           }
 
+          /* 2. ID SISA: CENTERED DIRECTLY BELOW 'Nama PTj/ PTj Name:' */
           .field-id-sisa {
-            top: 56px;
-            right: 40px;
-            font-size: 13px;
-            text-align: right;
+            top: 58px;
+            left: 480px;
+            width: 280px;
+            font-size: 12px;
+            text-align: center;
             font-weight: 900;
+            letter-spacing: 0.3px;
           }
 
+          /* METADATA FIELDS */
           .field-tarikh {
             top: 290px;
             left: 275px;
@@ -113,14 +115,14 @@ export function handlePrintRoshWasteLabel(item, profile) {
             left: 275px;
             font-size: 13px;
             width: 480px;
-            color: #000;
           }
 
+          /* 3. QR CODE: SHIFTED INWARD & SCALED TO FIT STRICTLY INSIDE THE CELL BORDER */
           .field-qr-code {
-            top: 288px;
-            right: 32px;
-            width: 110px;
-            height: 110px;
+            top: 295px;
+            right: 48px;
+            width: 88px;
+            height: 88px;
           }
 
           .field-qr-code img {
@@ -150,9 +152,9 @@ export function handlePrintRoshWasteLabel(item, profile) {
           <div class="data-overlay field-jabatan">${deptCenter}</div>
           <div class="data-overlay field-nama-bahan">${chemicalName}</div>
 
-          <!-- DYNAMIC QR CODE OVERLAY -->
+          <!-- QR CODE OVERLAY -->
           <div class="data-overlay field-qr-code">
-            <img src="https://quickchart.io/qr?text=${encodeURIComponent(wasteId)}&size=120" alt="QR Code" />
+            <img src="https://quickchart.io/qr?text=${encodeURIComponent(wasteId)}&size=100" alt="QR Code" />
           </div>
         </div>
 

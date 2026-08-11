@@ -137,7 +137,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
         nama_buangan: item.namaBuangan.toUpperCase(),
         penjelasan_kod_sw: penjelasanKod,
         fakulti: fakultiCode,
-        status: 'SUBMITTED',
+        status: 'DIKEMASKINI',
         catatan_semakan: null
       };
 
@@ -171,7 +171,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
           nama_buangan: item.namaBuangan.toUpperCase(),
           penjelasan_kod_sw: penjelasanKod,
           fakulti: fakultiCode,
-          status: 'SUBMITTED',
+          status: 'DIKEMASKINI',
           catatan_semakan: null
         };
 

@@ -106,15 +106,30 @@ export function handlePrintRoshWasteLabel(item, profile) {
   printWindow.document.close();
 }
 
-// 2. BATCH PRINTING: 4 LABELS PER A4 LANDSCAPE PAGE (2x2 GRID)
+// 2. BATCH PRINTING: AUTOMATICALLY GENERATES MULTIPLE LABELS BASED ON BOTTLE COUNT
 export function handlePrintBatchRoshLabels(items, profile) {
   if (!items || items.length === 0) return;
 
+  // EXPAND ITEMS ARRAY BASED ON TOTAL BOTTLE QUANTITY FOR EACH ID SISA
+  const expandedItems = [];
+  items.forEach((item) => {
+    const b25 = parseInt(item.botol_2_5l_kimia || item.botol_2_5l_kosong || 0, 10) || 0;
+    const b40 = parseInt(item.botol_4_0l_kimia || item.botol_4_0l_kosong || 0, 10) || 0;
+    
+    // Total bottle count (or 1 if no bottle quantity specified, e.g., solid waste/kg)
+    const totalBottles = (b25 + b40) > 0 ? (b25 + b40) : 1;
+
+    for (let i = 0; i < totalBottles; i++) {
+      expandedItems.push(item);
+    }
+  });
+
   const printWindow = window.open('', '_blank');
 
+  // Split expandedItems array into chunks of 4 (A4 Landscape 2x2 Grid)
   const chunks = [];
-  for (let i = 0; i < items.length; i += 4) {
-    chunks.push(items.slice(i, i + 4));
+  for (let i = 0; i < expandedItems.length; i += 4) {
+    chunks.push(expandedItems.slice(i, i + 4));
   }
 
   const pagesHtml = chunks.map((chunk) => {
@@ -126,7 +141,7 @@ export function handlePrintBatchRoshLabels(items, profile) {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Cetak Batch Label ROSH UKM (${items.length} Label)</title>
+        <title>Cetak Batch Label ROSH UKM (${expandedItems.length} Label)</title>
         <style>
           @page {
             size: A4 landscape;
@@ -187,11 +202,9 @@ export function handlePrintBatchRoshLabels(items, profile) {
           .field-jabatan { top: 78.0%; left: 34.6%; font-size: 2.8mm; width: 60%; }
           .field-nama-bahan { top: 86.8%; left: 34.6%; font-size: 2.8mm; width: 60%; }
 
-          /* SINGLE PRIMARY QR CODE */
           .field-qr-code { top: 52.8%; right: 6.0%; width: 11.5%; height: auto; }
           .field-qr-code img { width: 100%; height: auto; display: block; }
 
-          /* STACKED QR CODES (FOR SW430 WITH SDS) */
           .field-qr-primary-split { top: 51.5%; right: 6.0%; width: 9.2%; height: auto; }
           .field-qr-primary-split img { width: 100%; height: auto; display: block; }
 

@@ -473,7 +473,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
         <h3>{editingWasteId ? `Kemaskini Sisa (${editingWasteId})` : 'Borang Pendaftaran Sisa Terjadual'}</h3>
         {editingWasteId && (
           <p style={{ color: '#856404', backgroundColor: '#fff3cd', padding: '8px', borderRadius: '4px' }}>
-            Sisa ini dikembalikan oleh JKKP. Sila buat pembetulan dan tekan Kemaskini Rekod.
+            Sila kemaskini makmal, kod SW, nama bahan, atau kuantiti dan tekan Hantar Pembetulan Rekod.
           </p>
         )}
 
@@ -624,8 +624,8 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                     <th style={styles.th}>Nama Bahan</th>
                     <th style={styles.th}>Kuantiti</th>
                     <th style={styles.th}>Tempoh Simpanan</th>
+                    <th style={styles.th}>Pinda / Edit</th>
                     <th style={styles.th}>Status & Muatnaik SDS</th>
-                    <th style={styles.th}>Tindakan</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -633,6 +633,12 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                     const daysElapsed = calculateStorageDays(item.created_at);
                     const isChecked = selectedWasteIds.includes(item.id_sisa);
                     const isSw430 = item.kod_sw === 'SW430';
+
+                    // Check if JKKP has already approved/verified this record
+                    const isApprovedByJkkp = item.status === 'DISAHKAN_JKKP' || 
+                                             item.status === 'DISAHKAN' || 
+                                             item.status === 'SAH' || 
+                                             item.status === 'APPROVED';
 
                     return (
                       <tr key={item.id} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : '#fff' }}>
@@ -655,6 +661,22 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                             <span style={{ backgroundColor: '#fff3cd', color: '#856404', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>⚠️ {daysElapsed} Hari</span>
                           ) : (
                             <span style={{ fontWeight: 'bold', color: '#212529' }}>{daysElapsed} Hari</span>
+                          )}
+                        </td>
+
+                        {/* PINDA / EDIT COLUMN BEFORE STATUS */}
+                        <td style={styles.td}>
+                          {!isApprovedByJkkp ? (
+                            <button 
+                              onClick={() => handleEditWasteItem(item)} 
+                              style={{ ...styles.smallButton, backgroundColor: '#ffc107', color: '#000' }}
+                            >
+                              ✏️ Pinda
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold' }}>
+                              🔒 Disahkan
+                            </span>
                           )}
                         </td>
                         
@@ -687,14 +709,6 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                                 />
                               )}
                             </div>
-                          )}
-                        </td>
-
-                        <td style={styles.td}>
-                          {item.status === 'DIKEMBALIKAN_KE_PENJANA' ? (
-                            <button onClick={() => handleEditWasteItem(item)} style={{ ...styles.smallButton, backgroundColor: '#ffc107', color: '#000' }}>✏️ Pinda</button>
-                          ) : (
-                            <span style={{ fontSize: '12px', color: '#888' }}>-</span>
                           )}
                         </td>
                       </tr>

@@ -13,7 +13,6 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   const [siriPelupusan, setSiriPelupusan] = useState('');
   const [tarikhPelupusan, setTarikhPelupusan] = useState('');
   const [penjelasanKod, setPenjelasanKod] = useState('Sisa pelarut organik terpakai');
-  const [selectedQrItem, setSelectedQrItem] = useState(null);
 
   const [wasteItems, setWasteItems] = useState([
     {
@@ -106,90 +105,43 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     setLoading(true);
 
     const fakultiCode = profile?.fakulti || 'FST';
-    const year = new Date().getFullYear();
 
-    // Inside handleAddOrUpdateWaste in src/components/views/PenjanaView.jsx:
-if (editingWasteId) {
-  // Single Item Update
-  const item = wasteItems[0];
-  const payload = {
-    nama_makmal: sisaMakmal,
-    kategori_makmal: kategoriMakmal,
-    siri_pelupusan: siriPelupusan,
-    tarikh_pelupusan: tarikhPelupusan,
-    kod_sw: item.kodSw,
-    nama_buangan: item.namaBuangan.toUpperCase(),
-    penjelasan_kod_sw: penjelasanKod,
-    fakulti: fakultiCode,
-    status: 'SUBMITTED',
-    catatan_semakan: null
-  };
+    if (editingWasteId) {
+      const item = wasteItems[0];
+      const payload = {
+        nama_makmal: sisaMakmal,
+        kategori_makmal: kategoriMakmal,
+        siri_pelupusan: siriPelupusan,
+        tarikh_pelupusan: tarikhPelupusan,
+        kod_sw: item.kodSw,
+        nama_buangan: item.namaBuangan.toUpperCase(),
+        penjelasan_kod_sw: penjelasanKod,
+        fakulti: fakultiCode,
+        status: 'SUBMITTED',
+        catatan_semakan: null
+      };
 
-  if (item.kodSw === 'SW409') {
-    payload.botol_2_5l_kosong = parseInt(item.botol25LKosong, 10) || 0;
-    payload.botol_4_0l_kosong = parseInt(item.botol40LKosong, 10) || 0;
-    payload.lain_lain_kg = parseFloat(item.lainLainKg) || 0;
-    payload.peralatan_kaca_kg = parseFloat(item.peralatanKacaKg) || 0;
-  } else {
-    payload.botol_2_5l_kimia = parseInt(item.botol25L, 10) || 0;
-    payload.botol_4_0l_kimia = parseInt(item.botol40L, 10) || 0;
-    payload.kilogram_kimia = parseFloat(item.kilogramKimia) || 0;
-  }
+      if (item.kodSw === 'SW409') {
+        payload.botol_2_5l_kosong = parseInt(item.botol25LKosong, 10) || 0;
+        payload.botol_4_0l_kosong = parseInt(item.botol40LKosong, 10) || 0;
+        payload.lain_lain_kg = parseFloat(item.lainLainKg) || 0;
+        payload.peralatan_kaca_kg = parseFloat(item.peralatanKacaKg) || 0;
+      } else {
+        payload.botol_2_5l_kimia = parseInt(item.botol25L, 10) || 0;
+        payload.botol_4_0l_kimia = parseInt(item.botol40L, 10) || 0;
+        payload.kilogram_kimia = parseFloat(item.kilogramKimia) || 0;
+      }
 
-  const { error } = await supabase.from('rekod_sisa').update(payload).eq('id_sisa', editingWasteId);
-  if (error) alert('Gagal pinda sisa: ' + error.message);
-  else {
-    alert(`Rekod sisa ${editingWasteId} berjaya dikemaskini!`);
-    resetWasteForm();
-    fetchAllWasteRecords();
-  }
-} else {
-  // Batch Multi-item Submission (ID SISA generated automatically by Supabase sequence)
-  const payloads = wasteItems.map((item) => {
-    const payload = {
-      user_id: session.user.id,
-      nama_makmal: sisaMakmal,
-      kategori_makmal: kategoriMakmal,
-      siri_pelupusan: siriPelupusan,
-      tarikh_pelupusan: tarikhPelupusan,
-      kod_sw: item.kodSw,
-      nama_buangan: item.namaBuangan.toUpperCase(),
-      penjelasan_kod_sw: penjelasanKod,
-      fakulti: fakultiCode,
-      status: 'SUBMITTED',
-      catatan_semakan: null
-    };
-
-    if (item.kodSw === 'SW409') {
-      payload.botol_2_5l_kosong = parseInt(item.botol25LKosong, 10) || 0;
-      payload.botol_4_0l_kosong = parseInt(item.botol40LKosong, 10) || 0;
-      payload.lain_lain_kg = parseFloat(item.lainLainKg) || 0;
-      payload.peralatan_kaca_kg = parseFloat(item.peralatanKacaKg) || 0;
-    } else {
-      payload.botol_2_5l_kimia = parseInt(item.botol25L, 10) || 0;
-      payload.botol_4_0l_kimia = parseInt(item.botol40L, 10) || 0;
-      payload.kilogram_kimia = parseFloat(item.kilogramKimia) || 0;
-    }
-    return payload;
-  });
-
-  const { error } = await supabase.from('rekod_sisa').insert(payloads);
-  if (error) alert('Gagal daftar sisa: ' + error.message);
-  else {
-    alert(`Berjaya mendaftarkan ${payloads.length} rekod sisa!`);
-    resetWasteForm();
-    fetchAllWasteRecords();
-  }
-}
-
+      const { error } = await supabase.from('rekod_sisa').update(payload).eq('id_sisa', editingWasteId);
+      if (error) alert('Gagal pinda sisa: ' + error.message);
+      else {
+        alert(`Rekod sisa ${editingWasteId} berjaya dikemaskini!`);
+        resetWasteForm();
+        fetchAllWasteRecords();
+      }
     } else {
       const payloads = wasteItems.map((item) => {
-        const swNumber = item.kodSw.replace(/\D/g, '');
-        const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
-        const generatedIdSisa = `${fakultiCode}-${year}-${swNumber}-${Date.now().toString().slice(-4)}${randomSuffix}`;
-
         const payload = {
-          id_sisa: generatedIdSisa,
           user_id: session.user.id,
           nama_makmal: sisaMakmal,
           kategori_makmal: kategoriMakmal,
@@ -619,7 +571,15 @@ if (editingWasteId) {
                       <td style={styles.td}>
                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                           <button onClick={() => handlePrintPdfForm(item)} style={styles.smallButton}>📄 Borang PDF</button>
-                          <button onClick={() => handlePrintRoshWasteLabel(item, profile)} style={{ ...styles.smallButton, backgroundColor: '#17a2b8' }}>🏷️ Label Sisa ROSH</button>
+                          
+                          {/* ROSH UKM LABEL PRINTING BUTTON */}
+                          <button 
+                            onClick={() => handlePrintRoshWasteLabel(item, profile)} 
+                            style={{ ...styles.smallButton, backgroundColor: '#17a2b8' }}
+                          >
+                            🏷️ Label Sisa ROSH
+                          </button>
+
                           {item.status === 'DIKEMBALIKAN_KE_PENJANA' && (
                             <button onClick={() => handleEditWasteItem(item)} style={{ ...styles.smallButton, backgroundColor: '#ffc107', color: '#000' }}>✏️ Pinda</button>
                           )}
@@ -633,33 +593,6 @@ if (editingWasteId) {
           </div>
         )}
       </div>
-
-      {selectedQrItem && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalCard}>
-            <h3>Label Sisa Terjadual & QR Code</h3>
-            <div id="printableQrArea" style={{ border: '2px solid #000', padding: '15px', textAlign: 'center', backgroundColor: '#fff' }}>
-              <h4 style={{ margin: '0 0 5px 0' }}>AMARAN: BUANGAN TERJADUAL</h4>
-              <p style={{ fontSize: '11px', margin: '0 0 10px 0', fontWeight: 'bold' }}>UNIVERSITI KEBANGSAAN MALAYSIA</p>
-              <div style={{ margin: '10px 0' }}>
-                <img src={`https://quickchart.io/qr?text=${encodeURIComponent(selectedQrItem.id_sisa)}&size=150`} alt="QR Code" style={{ width: '140px', height: '140px', border: '1px solid #ccc', padding: '4px' }} />
-              </div>
-              <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '8px' }}>{selectedQrItem.id_sisa}</div>
-              <div style={{ textAlign: 'left', marginTop: '10px', fontSize: '12px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
-                <p style={{ margin: '2px 0' }}><strong>Kod SW:</strong> {selectedQrItem.kod_sw}</p>
-                <p style={{ margin: '2px 0' }}><strong>Nama Sisa:</strong> {selectedQrItem.nama_buangan}</p>
-                <p style={{ margin: '2px 0' }}><strong>Makmal:</strong> {selectedQrItem.nama_makmal || '-'}</p>
-                <p style={{ margin: '2px 0' }}><strong>Fakulti:</strong> {selectedQrItem.fakulti}</p>
-                <p style={{ margin: '2px 0' }}><strong>Kuantiti:</strong> {getQuantityText(selectedQrItem)}</p>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-              <button onClick={() => window.print()} style={{ ...styles.button, backgroundColor: '#28a745' }}>Cetak Label</button>
-              <button onClick={() => setSelectedQrItem(null)} style={{ ...styles.button, backgroundColor: '#6c757d' }}>Tutup</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

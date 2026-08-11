@@ -62,7 +62,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
             overflow: hidden;
             background: #fff;
           }
-          .bg-template { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; }
+          .bg-template { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: fill; z-index: 1; }
           .data-overlay { position: absolute; z-index: 10; font-weight: bold; color: #000; line-height: 1.2; word-break: break-word; }
           .field-ptj { top: 4.3%; left: 70.5%; font-size: 15px; text-align: left; }
           .field-id-sisa { top: 10.3%; left: 42.8%; width: 35.2%; font-size: 12px; text-align: center; font-weight: 900; }
@@ -86,7 +86,7 @@ export function handlePrintRoshWasteLabel(item, profile) {
   printWindow.document.close();
 }
 
-// 2. BATCH PRINTING: 4 LABELS PER A4 PAGE (2x2 GRID)
+// 2. BATCH PRINTING: 4 LABELS PER A4 LANDSCAPE PAGE (HORIZONTAL 2x2 GRID)
 export function handlePrintBatchRoshLabels(items, profile) {
   if (!items || items.length === 0) return;
 
@@ -100,7 +100,7 @@ export function handlePrintBatchRoshLabels(items, profile) {
 
   const pagesHtml = chunks.map((chunk) => {
     const labelsInChunk = chunk.map((item) => buildLabelCanvasHtml(item, profile)).join('');
-    return `<div class="a4-page">${labelsInChunk}</div>`;
+    return `<div class="a4-page-landscape">${labelsInChunk}</div>`;
   }).join('');
 
   const htmlContent = `
@@ -110,8 +110,8 @@ export function handlePrintBatchRoshLabels(items, profile) {
         <title>Cetak Batch Label ROSH UKM (${items.length} Label)</title>
         <style>
           @page {
-            size: A4 portrait;
-            margin: 6mm;
+            size: A4 landscape;
+            margin: 4mm;
           }
           body {
             font-family: Arial, Helvetica, sans-serif;
@@ -120,40 +120,41 @@ export function handlePrintBatchRoshLabels(items, profile) {
             background: #fff;
           }
           
-          /* A4 PAGE CONTAINER: 2x2 GRID FOR 4 LABELS */
-          .a4-page {
-            width: 198mm;
-            height: 284mm;
+          /* A4 LANDSCAPE PAGE CONTAINER: 2 COLUMNS x 2 ROWS */
+          .a4-page-landscape {
+            width: 289mm;
+            height: 201mm;
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
-            gap: 4mm;
+            gap: 3mm;
             page-break-after: always;
             box-sizing: border-box;
           }
 
-          /* INDIVIDUAL LABEL CELL INSIDE A4 GRID */
+          /* INDIVIDUAL LABEL CANVAS INSIDE GRID */
           .label-canvas {
             position: relative;
             width: 100%;
             height: 100%;
-            border: 1px solid #999;
+            border: 1px dashed #ccc; /* Light cutting boundary */
             overflow: hidden;
             background: #fff;
             box-sizing: border-box;
           }
 
+          /* BACKGROUND TEMPLATE FILLS 100% OF THE CARD */
           .bg-template {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: fill; /* Stretches template precisely inside label box */
             z-index: 1;
           }
 
-          /* PERCENTAGE-BASED OVERLAY COORDINATES FOR SCALED 2x2 GRID */
+          /* PERCENTAGE-BASED OVERLAYS PRECISELY BOUNDED INSIDE LABEL BOX */
           .data-overlay {
             position: absolute;
             z-index: 10;
@@ -163,15 +164,15 @@ export function handlePrintBatchRoshLabels(items, profile) {
             word-break: break-word;
           }
 
-          .field-ptj { top: 4.3%; left: 70.5%; font-size: 2.8mm; text-align: left; }
-          .field-id-sisa { top: 10.3%; left: 42.8%; width: 35.2%; font-size: 2.4mm; text-align: center; font-weight: 900; }
-          .field-tarikh { top: 51.8%; left: 34.6%; font-size: 2.5mm; }
-          .field-makmal { top: 60.5%; left: 34.6%; font-size: 2.5mm; }
-          .field-jenis-makmal { top: 69.4%; left: 34.6%; font-size: 2.5mm; }
-          .field-jabatan { top: 78.0%; left: 34.6%; font-size: 2.5mm; width: 60%; }
-          .field-nama-bahan { top: 86.8%; left: 34.6%; font-size: 2.5mm; width: 60%; }
+          .field-ptj { top: 4.3%; left: 70.5%; font-size: 3.2mm; text-align: left; }
+          .field-id-sisa { top: 10.3%; left: 42.8%; width: 35.2%; font-size: 2.6mm; text-align: center; font-weight: 900; }
+          .field-tarikh { top: 51.8%; left: 34.6%; font-size: 2.8mm; }
+          .field-makmal { top: 60.5%; left: 34.6%; font-size: 2.8mm; }
+          .field-jenis-makmal { top: 69.4%; left: 34.6%; font-size: 2.8mm; }
+          .field-jabatan { top: 78.0%; left: 34.6%; font-size: 2.8mm; width: 60%; }
+          .field-nama-bahan { top: 86.8%; left: 34.6%; font-size: 2.8mm; width: 60%; }
 
-          .field-qr-code { top: 52.8%; right: 6.0%; width: 12.0%; height: auto; }
+          .field-qr-code { top: 52.8%; right: 6.0%; width: 11.5%; height: auto; }
           .field-qr-code img { width: 100%; height: auto; display: block; }
         </style>
       </head>

@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { siriPelupusanList, kategoriMakmalList } from '../../constants/ukmData';
 import { calculateStorageDays, formatMalayDate, getQuantityText, getStatusBadgeStyle } from '../../utils/helpers';
 import { styles } from '../../styles/styles';
-import { handlePrintRoshWasteLabel } from '../../utils/printRoshLabel';
+import { handlePrintBatchRoshLabels } from '../../utils/printRoshLabel';
 
 export default function PenjanaView({ session, profile, allWasteRecords, fetchAllWasteRecords, setActiveTab }) {
   const [loading, setLoading] = useState(false);
@@ -14,6 +14,9 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   const [tarikhPelupusan, setTarikhPelupusan] = useState('');
   const [penjelasanKod, setPenjelasanKod] = useState('Sisa pelarut organik terpakai');
 
+  // Checkbox selection state for batch PDF/Label generation
+  const [selectedWasteIds, setSelectedWasteIds] = useState([]);
+
   const [wasteItems, setWasteItems] = useState([
     {
       id: Date.now(), kodSw: '', namaBuangan: '', botol25L: '', botol40L: '',
@@ -22,6 +25,23 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   ]);
 
   const myWasteRecords = allWasteRecords.filter((r) => r.user_id === session?.user?.id);
+
+  // Checkbox Selection Handlers
+  function toggleSelectWaste(id) {
+    if (selectedWasteIds.includes(id)) {
+      setSelectedWasteIds(selectedWasteIds.filter((item) => item !== id));
+    } else {
+      setSelectedWasteIds([...selectedWasteIds, id]);
+    }
+  }
+
+  function toggleSelectAll() {
+    if (selectedWasteIds.length === myWasteRecords.length && myWasteRecords.length > 0) {
+      setSelectedWasteIds([]);
+    } else {
+      setSelectedWasteIds(myWasteRecords.map((r) => r.id_sisa));
+    }
+  }
 
   function handleSiriChange(newSiri) {
     setSiriPelupusan(newSiri);
@@ -179,32 +199,31 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     setLoading(false);
   }
 
-  function handlePrintPdfForm(item) {
-    const printWindow = window.open('', '_blank');
-    const isSw409 = item.kod_sw === 'SW409';
-    const relatedRecords = allWasteRecords.filter(
-      (r) =>
-        r.user_id === item.user_id &&
-        r.nama_makmal === item.nama_makmal &&
-        (item.tarikh_pelupusan ? r.tarikh_pelupusan === item.tarikh_pelupusan : true) &&
-        (isSw409 ? r.kod_sw === 'SW409' : r.kod_sw !== 'SW409')
-    );
+  // BULK PRINT BORANG PDF FOR TICKED ITEMS
+  function handlePrintSelectedPdf() {
+    const selectedRecords = myWasteRecords.filter((r) => selectedWasteIds.includes(r.id_sisa));
+    if (selectedRecords.length === 0) {
+      alert('Sila tandakan (tick) sekurang-kurangnya satu sisa daripada senarai untuk dicetak.');
+      return;
+    }
 
-    const recordsToPrint = relatedRecords.length > 0 ? relatedRecords : [item];
+    const printWindow = window.open('', '_blank');
+    const firstItem = selectedRecords[0];
+    const isSw409 = firstItem.kod_sw === 'SW409';
     const docCode = isSw409 ? 'UKM-SPKPPP-PT(P)07-ROSH-AK04-BO04' : 'UKM-SPKPPP-PT(P)07-ROSH-AK04-BO01';
     const docTitle = isSw409 
       ? 'BORANG RINGKASAN PELUPUSAN BOTOL KOSONG & PERALATAN KACA' 
       : 'BORANG PELUPUSAN BUANGAN TERJADUAL (SISA KIMIA)';
 
-    const dateFormatted = formatMalayDate(item.tarikh_pelupusan);
+    const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan);
     const monthFormatted = dateFormatted.split(' ').slice(1).join(' ') || 'Ogos 2026';
-    const makmalName = item.nama_makmal || profile?.senarai_makmal?.[0] || 'Makmal Utama';
+    const makmalName = firstItem.nama_makmal || profile?.senarai_makmal?.[0] || 'Makmal Utama';
     const programName = profile?.program_jabatan || 'Unit Sains Kimia';
-    const lokasiPengumpulan = profile?.tapak_pengumpulan || `Parkir Bangunan ${item.fakulti || 'FST'}`;
-    const katMakmal = item.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
+    const lokasiPengumpulan = profile?.tapak_pengumpulan || `Parkir Bangunan ${firstItem.fakulti || 'FST'}`;
+    const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
     let totB25 = 0, totB40 = 0, totKg = 0, totLain = 0, totKaca = 0;
-    recordsToPrint.forEach((r) => {
+    selectedRecords.forEach((r) => {
       totB25 += (r.botol_2_5l_kimia || r.botol_2_5l_kosong || 0);
       totB40 += (r.botol_4_0l_kimia || r.botol_4_0l_kosong || 0);
       totKg += (r.kilogram_kimia || 0);
@@ -219,7 +238,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     const htmlContent = `
       <html>
         <head>
-          <title>${docTitle} - ${item.id_sisa}</title>
+          <title>${docTitle} - ${selectedRecords.length} Item</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 12px; line-height: 1.4; }
             .rosh-header-box { width: 100%; border-collapse: collapse; border: 2px solid #555; background-color: #dcd8c0; margin-bottom: 15px; }
@@ -272,7 +291,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
             <tr><td class="meta-label">Tarikh Pelupusan</td><td>: ${dateFormatted}</td></tr>
             <tr><td class="meta-label">Makmal</td><td>: ${makmalName}</td></tr>
             <tr><td class="meta-label">Program/ Jabatan</td><td>: ${programName}</td></tr>
-            <tr><td class="meta-label">Fakulti/ Institut/ Pusat</td><td>: ${item.fakulti || profile?.fakulti || 'FST'}</td></tr>
+            <tr><td class="meta-label">Fakulti/ Institut/ Pusat</td><td>: ${firstItem.fakulti || profile?.fakulti || 'FST'}</td></tr>
             <tr><td class="meta-label">Lokasi Pengumpulan</td><td>: ${lokasiPengumpulan}</td></tr>
             <tr>
               <td class="meta-label">Kategori Makmal <span style="color: #0056b3; font-style: italic;">(Sila tandakan)</span></td>
@@ -295,7 +314,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                 </tr>
               </thead>
               <tbody>
-                ${recordsToPrint.map((r, idx) => `
+                ${selectedRecords.map((r, idx) => `
                   <tr>
                     <td>${idx + 1}</td>
                     <td>${(r.botol_2_5l_kosong || 0).toFixed(2)}</td>
@@ -329,7 +348,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                 </tr>
               </thead>
               <tbody>
-                ${recordsToPrint.map((r, idx) => `
+                ${selectedRecords.map((r, idx) => `
                   <tr>
                     <td>${idx + 1}</td>
                     <td style="text-align: left;">${r.nama_buangan || '-'}</td>
@@ -389,6 +408,17 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     }
   }
 
+  // BULK BATCH PRINT LABELS (4 PER A4 PAGE) FOR TICKED ITEMS
+  function handlePrintSelectedLabels() {
+    const selectedRecords = myWasteRecords.filter((r) => selectedWasteIds.includes(r.id_sisa));
+    if (selectedRecords.length === 0) {
+      alert('Sila tandakan (tick) sekurang-kurangnya satu sisa daripada senarai untuk mencetak label.');
+      return;
+    }
+
+    handlePrintBatchRoshLabels(selectedRecords, profile);
+  }
+
   return (
     <div>
       <div style={styles.pageTitleBar}>
@@ -396,6 +426,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
         <button onClick={() => setActiveTab('HUB')} style={styles.backButton}>← Kembali ke Papan Pemuka</button>
       </div>
 
+      {/* FORM SECTION */}
       <div style={styles.card}>
         <h3>{editingWasteId ? `Kemaskini Sisa (${editingWasteId})` : 'Borang Pendaftaran Sisa Terjadual'}</h3>
         {editingWasteId && (
@@ -526,70 +557,103 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
         </form>
       </div>
 
+      {/* MONITORING TABLE & CHECKBOX ACTIONS SECTION */}
       <div style={{ ...styles.card, marginTop: '20px' }}>
         <h3>Status Pemantauan Sisa Peribadi</h3>
         {myWasteRecords.length === 0 ? (
           <p style={{ color: '#666' }}>Tiada rekod sisa didaftarkan oleh anda lagi.</p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={styles.table}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8f9fa' }}>
-                  <th style={styles.th}>ID Sisa</th>
-                  <th style={styles.th}>Makmal</th>
-                  <th style={styles.th}>Kod SW</th>
-                  <th style={styles.th}>Nama Bahan</th>
-                  <th style={styles.th}>Kuantiti</th>
-                  <th style={styles.th}>Tempoh Simpanan</th>
-                  <th style={styles.th}>Status</th>
-                  <th style={styles.th}>Tindakan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {myWasteRecords.map((item) => {
-                  const daysElapsed = calculateStorageDays(item.created_at);
-                  return (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={styles.td}><strong>{item.id_sisa}</strong></td>
-                      <td style={styles.td}>{item.nama_makmal || '-'}</td>
-                      <td style={styles.td}>{item.kod_sw}</td>
-                      <td style={styles.td}>{item.nama_buangan}</td>
-                      <td style={styles.td}>{getQuantityText(item)}</td>
-                      <td style={styles.td}>
-                        {daysElapsed > 180 ? (
-                          <span style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>⚠️ {daysElapsed} Hari (&gt;180 Hari)</span>
-                        ) : daysElapsed > 150 ? (
-                          <span style={{ backgroundColor: '#fff3cd', color: '#856404', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>⚠️ {daysElapsed} Hari</span>
-                        ) : (
-                          <span style={{ fontWeight: 'bold', color: '#212529' }}>{daysElapsed} Hari</span>
-                        )}
-                      </td>
-                      <td style={styles.td}>
-                        <span style={getStatusBadgeStyle(item.status)}>{item.status}</span>
-                        {item.catatan_semakan && <div style={{ fontSize: '11px', color: '#dc3545', marginTop: '4px' }}>Catatan: {item.catatan_semakan}</div>}
-                      </td>
-                      <td style={styles.td}>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          <button onClick={() => handlePrintPdfForm(item)} style={styles.smallButton}>📄 Borang PDF</button>
-                          
-                          {/* ROSH UKM LABEL PRINTING BUTTON */}
-                          <button 
-                            onClick={() => handlePrintRoshWasteLabel(item, profile)} 
-                            style={{ ...styles.smallButton, backgroundColor: '#17a2b8' }}
-                          >
-                            🏷️ Label Sisa ROSH
-                          </button>
+          <div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8f9fa' }}>
+                    <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={myWasteRecords.length > 0 && selectedWasteIds.length === myWasteRecords.length} 
+                        onChange={toggleSelectAll} 
+                        title="Pilih Semua Sisa"
+                      />
+                    </th>
+                    <th style={styles.th}>ID Sisa</th>
+                    <th style={styles.th}>Makmal</th>
+                    <th style={styles.th}>Kod SW</th>
+                    <th style={styles.th}>Nama Bahan</th>
+                    <th style={styles.th}>Kuantiti</th>
+                    <th style={styles.th}>Tempoh Simpanan</th>
+                    <th style={styles.th}>Status</th>
+                    <th style={styles.th}>Tindakan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myWasteRecords.map((item) => {
+                    const daysElapsed = calculateStorageDays(item.created_at);
+                    const isChecked = selectedWasteIds.includes(item.id_sisa);
 
-                          {item.status === 'DIKEMBALIKAN_KE_PENJANA' && (
-                            <button onClick={() => handleEditWasteItem(item)} style={{ ...styles.smallButton, backgroundColor: '#ffc107', color: '#000' }}>✏️ Pinda</button>
+                    return (
+                      <tr key={item.id} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : '#fff' }}>
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked} 
+                            onChange={() => toggleSelectWaste(item.id_sisa)} 
+                          />
+                        </td>
+                        <td style={styles.td}><strong>{item.id_sisa}</strong></td>
+                        <td style={styles.td}>{item.nama_makmal || '-'}</td>
+                        <td style={styles.td}>{item.kod_sw}</td>
+                        <td style={styles.td}>{item.nama_buangan}</td>
+                        <td style={styles.td}>{getQuantityText(item)}</td>
+                        <td style={styles.td}>
+                          {daysElapsed > 180 ? (
+                            <span style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>⚠️ {daysElapsed} Hari (&gt;180 Hari)</span>
+                          ) : daysElapsed > 150 ? (
+                            <span style={{ backgroundColor: '#fff3cd', color: '#856404', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '11px' }}>⚠️ {daysElapsed} Hari</span>
+                          ) : (
+                            <span style={{ fontWeight: 'bold', color: '#212529' }}>{daysElapsed} Hari</span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={getStatusBadgeStyle(item.status)}>{item.status}</span>
+                          {item.catatan_semakan && <div style={{ fontSize: '11px', color: '#dc3545', marginTop: '4px' }}>Catatan: {item.catatan_semakan}</div>}
+                        </td>
+                        <td style={styles.td}>
+                          {item.status === 'DIKEMBALIKAN_KE_PENJANA' ? (
+                            <button onClick={() => handleEditWasteItem(item)} style={{ ...styles.smallButton, backgroundColor: '#ffc107', color: '#000' }}>✏️ Pinda</button>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: '#888' }}>-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* BOTTOM ACTION BAR FOR TICKED ITEMS */}
+            <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#eef2f7', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
+                📌 Terpilih: <span style={{ color: '#0056b3' }}>{selectedWasteIds.length}</span> daripada {myWasteRecords.length} rekod sisa
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button 
+                  onClick={handlePrintSelectedPdf} 
+                  style={{ ...styles.button, backgroundColor: '#0056b3', padding: '8px 14px', fontSize: '13px' }}
+                >
+                  📄 Cetak Borang PDF (Pilihan)
+                </button>
+
+                <button 
+                  onClick={handlePrintSelectedLabels} 
+                  style={{ ...styles.button, backgroundColor: '#17a2b8', padding: '8px 14px', fontSize: '13px' }}
+                >
+                  🏷️ Cetak Label ROSH (4 Label / Muka Surat A4)
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

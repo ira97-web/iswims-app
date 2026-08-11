@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { siriPelupusanList, kategoriMakmalList } from '../../constants/ukmData';
 import { calculateStorageDays, formatMalayDate, getQuantityText, getStatusBadgeStyle } from '../../utils/helpers';
 import { styles } from '../../styles/styles';
+import { handlePrintRoshWasteLabel } from '../../utils/printRoshLabel';
 
 export default function PenjanaView({ session, profile, allWasteRecords, fetchAllWasteRecords, setActiveTab }) {
   const [loading, setLoading] = useState(false);
@@ -577,7 +578,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                       <td style={styles.td}>
                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                           <button onClick={() => handlePrintPdfForm(item)} style={styles.smallButton}>📄 Borang PDF</button>
-                          <button onClick={() => setSelectedQrItem(item)} style={{ ...styles.smallButton, backgroundColor: '#17a2b8' }}>🏷️ Label QR</button>
+                          <button onClick={() => handlePrintRoshWasteLabel(item, profile)} style={{ ...styles.smallButton, backgroundColor: '#17a2b8' }}>🏷️ Label Sisa ROSH</button>
                           {item.status === 'DIKEMBALIKAN_KE_PENJANA' && (
                             <button onClick={() => handleEditWasteItem(item)} style={{ ...styles.smallButton, backgroundColor: '#ffc107', color: '#000' }}>✏️ Pinda</button>
                           )}

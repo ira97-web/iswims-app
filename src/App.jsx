@@ -10,6 +10,20 @@ import JkkpView from './components/views/JkkpView';
 import PenyelarasView from './components/views/PenyelarasView';
 import RoshView from './components/views/RoshView';
 
+const bangunanList = [
+  'Bangunan Sains Kimia',
+  'Bangunan Fizik Gunaan',
+  'Bangunan Dewan Anuar Mahmud',
+  'Bangunan Makmal Tambahan',
+  'Bangunan Sains Geologi',
+  'Bangunan Sains Nuklear',
+  'Bangunan Unit Mikroskopi Elektron',
+  'Kompleks Rumah Tumbuhan',
+  'Kompleks Rumah Haiwan',
+  'Bangunan Inbiosis',
+  'Bangunan Seri'
+];
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -23,7 +37,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Extended Profile State
+  // Profile Fields
   const [nama, setNama] = useState('');
   const [ukmper, setUkmper] = useState('');
   const [jawatan, setJawatan] = useState('');
@@ -32,6 +46,7 @@ export default function App() {
   const [programJabatan, setProgramJabatan] = useState('');
   const [senaraiMakmal, setSenaraiMakmal] = useState(['']);
   const [tapakPengumpulan, setTapakPengumpulan] = useState('');
+  const [bangunan, setBangunan] = useState('');
   const [role, setRole] = useState('');
   const [tandatangan, setTandatangan] = useState('');
   
@@ -73,6 +88,7 @@ export default function App() {
         setSenaraiMakmal(data.senarai_makmal.length > 0 ? data.senarai_makmal : ['']);
       }
       if (data.tapak_pengumpulan) setTapakPengumpulan(data.tapak_pengumpulan);
+      if (data.bangunan) setBangunan(data.bangunan);
       if (data.role) setRole(data.role);
       if (data.tandatangan_base64) setTandatangan(data.tandatangan_base64);
     }
@@ -205,7 +221,6 @@ export default function App() {
     setLoading(false);
   }
 
-  // SHORTENED REGISTRATION HANDLER
   async function handleRegister(e) {
     e.preventDefault();
     if (!role) {
@@ -243,24 +258,40 @@ export default function App() {
     e.preventDefault();
     if (!session?.user) return;
     setLoading(true);
+
+    const activeRole = role || profile?.role || 'Penjana';
     const validMakmalList = senaraiMakmal.filter((m) => m.trim() !== '');
-    const { error } = await supabase.from('profiles').upsert([{
+
+    const payload = {
       id: session.user.id,
       email: session.user.email.toLowerCase(),
       nama: nama.toUpperCase(),
       ukmper: ukmper.toUpperCase(),
       jawatan,
       no_tel: formatPhoneNumber(noTel),
-      fakulti,
-      program_jabatan: programJabatan,
-      senarai_makmal: validMakmalList,
-      tapak_pengumpulan: tapakPengumpulan,
-      role,
+      role: activeRole,
       tandatangan_base64: tandatangan
-    }]);
+    };
 
-    if (error) alert('Gagal simpan profil: ' + error.message);
-    else {
+    // Role-specific fields
+    if (activeRole === 'Penjana') {
+      payload.fakulti = fakulti;
+      payload.program_jabatan = programJabatan;
+      payload.senarai_makmal = validMakmalList;
+      payload.tapak_pengumpulan = tapakPengumpulan;
+    } else if (activeRole === 'JKKP') {
+      payload.fakulti = fakulti;
+      payload.program_jabatan = programJabatan;
+      payload.bangunan = bangunan;
+    } else if (activeRole === 'Penyelaras') {
+      payload.fakulti = fakulti;
+    }
+
+    const { error } = await supabase.from('profiles').upsert([payload]);
+
+    if (error) {
+      alert('Gagal simpan profil: ' + error.message);
+    } else {
       alert('Profil berjaya dikemaskini!');
       setIsEditingProfile(false);
       await fetchProfile(session.user.id);
@@ -279,6 +310,8 @@ export default function App() {
   const availablePrograms = programData[fakulti] || [];
   const availableLabs = makmalData[programJabatan] || [];
   const availableLocations = lokasiData[fakulti] || [];
+
+  const activeRole = role || profile?.role || 'Penjana';
 
   return (
     <div style={!session ? styles.loginWrapper : styles.container}>
@@ -319,11 +352,18 @@ export default function App() {
         </header>
       )}
 
-      {/* EDIT PROFILE FORM CARD */}
+      {/* CUSTOM DYNAMIC KEMASKINI PROFIL FORM */}
       {session && isEditingProfile && (
         <div style={{ ...styles.card, marginBottom: '20px' }}>
-          <h3 style={{ marginTop: 0, color: '#0056b3' }}>✏️ Kemaskini Profil & Makmal Pengurusan</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h3 style={{ margin: 0, color: '#0056b3' }}>✏️ Kemaskini Profil ({activeRole})</h3>
+            <span style={{ fontSize: '12px', padding: '4px 10px', backgroundColor: '#e2e8f0', borderRadius: '12px', fontWeight: 'bold' }}>
+              Peranan: {activeRole}
+            </span>
+          </div>
+
           <form onSubmit={handleSaveProfile} style={styles.form}>
+            {/* COMMON FIELDS FOR ALL ROLES */}
             <div style={styles.gridTwo}>
               <div>
                 <label style={styles.label}>Nama Penuh</label>
@@ -349,64 +389,147 @@ export default function App() {
               </div>
             </div>
 
-            <div style={styles.gridTwo}>
-              <div>
-                <label style={styles.label}>Fakulti / Institusi / Pusat</label>
-                <select value={fakulti} onChange={(e) => handleFakultiChange(e.target.value)} required style={styles.input}>
-                  <option value="">-- PILIH FAKULTI --</option>
-                  {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={styles.label}>Program / Jabatan / Unit</label>
-                <select value={programJabatan} onChange={(e) => handleProgramChange(e.target.value)} required style={styles.input}>
-                  <option value="">-- PILIH PROGRAM / JABATAN --</option>
-                  {availablePrograms.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e9ecef' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ ...styles.label, margin: 0 }}>🧪 Senarai Makmal Penyeliaan (Maksimum 5 Makmal)</label>
-                {senaraiMakmal.length < 5 && (
-                  <button type="button" onClick={handleAddMakmalSlot} style={{ ...styles.smallButton, backgroundColor: '#28a745' }}>+ Tambah Makmal</button>
-                )}
-              </div>
-              {senaraiMakmal.map((labVal, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                  <select value={labVal} onChange={(e) => handleMakmalChange(idx, e.target.value)} required={idx === 0} style={styles.input}>
-                    <option value="">-- PILIH MAKMAL {idx + 1} --</option>
-                    {availableLabs.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                  {senaraiMakmal.length > 1 && (
-                    <button type="button" onClick={() => handleRemoveMakmalSlot(idx)} style={{ ...styles.smallButton, backgroundColor: '#dc3545' }}>✕</button>
-                  )}
+            {/* ROLE 1: PENJANA SISA FIELDS */}
+            {activeRole === 'Penjana' && (
+              <>
+                <div style={styles.gridTwo}>
+                  <div>
+                    <label style={styles.label}>Fakulti / Institusi / Pusat</label>
+                    <select value={fakulti} onChange={(e) => handleFakultiChange(e.target.value)} required style={styles.input}>
+                      <option value="">-- PILIH FAKULTI --</option>
+                      {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={styles.label}>Program / Jabatan / Unit</label>
+                    <select value={programJabatan} onChange={(e) => handleProgramChange(e.target.value)} required style={styles.input}>
+                      <option value="">-- PILIH PROGRAM / JABATAN --</option>
+                      {availablePrograms.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
                 </div>
-              ))}
-            </div>
 
-            <div style={styles.gridTwo}>
-              <div>
-                <label style={styles.label}>Tapak Pengumpulan Sisa</label>
-                <select value={tapakPengumpulan} onChange={(e) => setTapakPengumpulan(e.target.value)} required style={styles.input}>
-                  <option value="">-- PILIH TAPAK PENGUMPULAN --</option>
-                  {availableLocations.map((l) => <option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={styles.label}>Peranan Pengguna</label>
-                <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
-                  <option value="">-- PILIH PERANAN --</option>
-                  <option value="Penjana">Penjana Sisa (Lab User)</option>
-                  <option value="JKKP">JKKP Bangunan</option>
-                  <option value="Penyelaras">Penyelaras BT</option>
-                  <option value="ROSH">ROSH-UKM Admin</option>
-                </select>
-              </div>
-            </div>
+                <div style={{ backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e9ecef' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ ...styles.label, margin: 0 }}>🧪 Senarai Makmal Penyeliaan (Maksimum 5 Makmal)</label>
+                    {senaraiMakmal.length < 5 && (
+                      <button type="button" onClick={handleAddMakmalSlot} style={{ ...styles.smallButton, backgroundColor: '#28a745' }}>+ Tambah Makmal</button>
+                    )}
+                  </div>
+                  {senaraiMakmal.map((labVal, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <select value={labVal} onChange={(e) => handleMakmalChange(idx, e.target.value)} required={idx === 0} style={styles.input}>
+                        <option value="">-- PILIH MAKMAL {idx + 1} --</option>
+                        {availableLabs.map((m) => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      {senaraiMakmal.length > 1 && (
+                        <button type="button" onClick={() => handleRemoveMakmalSlot(idx)} style={{ ...styles.smallButton, backgroundColor: '#dc3545' }}>✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-            <div style={{ backgroundColor: '#eef2f5', padding: '12px', borderRadius: '6px', border: '1px solid #ced4da' }}>
+                <div style={styles.gridTwo}>
+                  <div>
+                    <label style={styles.label}>Tapak Pengumpulan Sisa</label>
+                    <select value={tapakPengumpulan} onChange={(e) => setTapakPengumpulan(e.target.value)} required style={styles.input}>
+                      <option value="">-- PILIH TAPAK PENGUMPULAN --</option>
+                      {availableLocations.map((l) => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={styles.label}>Peranan Pengguna</label>
+                    <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
+                      <option value="Penjana">Penjana Sisa (Lab User)</option>
+                      <option value="JKKP">JKKP Bangunan</option>
+                      <option value="Penyelaras">Penyelaras BT</option>
+                      <option value="ROSH">ROSH-UKM Admin</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ROLE 2: JKKP BANGUNAN FIELDS */}
+            {activeRole === 'JKKP' && (
+              <>
+                <div style={styles.gridTwo}>
+                  <div>
+                    <label style={styles.label}>Fakulti / Institusi / Pusat</label>
+                    <select value={fakulti} onChange={(e) => handleFakultiChange(e.target.value)} required style={styles.input}>
+                      <option value="">-- PILIH FAKULTI --</option>
+                      {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={styles.label}>Program / Jabatan / Unit</label>
+                    <select value={programJabatan} onChange={(e) => handleProgramChange(e.target.value)} required style={styles.input}>
+                      <option value="">-- PILIH PROGRAM / JABATAN --</option>
+                      {availablePrograms.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={styles.gridTwo}>
+                  <div>
+                    <label style={styles.label}>Bangunan</label>
+                    <select value={bangunan} onChange={(e) => setBangunan(e.target.value)} required style={styles.input}>
+                      <option value="">-- PILIH BANGUNAN --</option>
+                      {bangunanList.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={styles.label}>Peranan Pengguna</label>
+                    <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
+                      <option value="Penjana">Penjana Sisa (Lab User)</option>
+                      <option value="JKKP">JKKP Bangunan</option>
+                      <option value="Penyelaras">Penyelaras BT</option>
+                      <option value="ROSH">ROSH-UKM Admin</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ROLE 3: PENYELARAS BT FIELDS */}
+            {activeRole === 'Penyelaras' && (
+              <div style={styles.gridTwo}>
+                <div>
+                  <label style={styles.label}>Fakulti / Institusi / Pusat</label>
+                  <select value={fakulti} onChange={(e) => setFakulti(e.target.value)} required style={styles.input}>
+                    <option value="">-- PILIH FAKULTI --</option>
+                    {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={styles.label}>Peranan Pengguna</label>
+                  <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
+                    <option value="Penjana">Penjana Sisa (Lab User)</option>
+                    <option value="JKKP">JKKP Bangunan</option>
+                    <option value="Penyelaras">Penyelaras BT</option>
+                    <option value="ROSH">ROSH-UKM Admin</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* ROLE 4: ROSH UKM FIELDS */}
+            {activeRole === 'ROSH' && (
+              <div style={styles.gridTwo}>
+                <div>
+                  <label style={styles.label}>Peranan Pengguna</label>
+                  <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
+                    <option value="Penjana">Penjana Sisa (Lab User)</option>
+                    <option value="JKKP">JKKP Bangunan</option>
+                    <option value="Penyelaras">Penyelaras BT</option>
+                    <option value="ROSH">ROSH-UKM Admin</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* DIGITAL SIGNATURE UPLOAD FIELD (COMMON FOR ALL) */}
+            <div style={{ backgroundColor: '#eef2f5', padding: '12px', borderRadius: '6px', border: '1px solid #ced4da', marginTop: '10px' }}>
               <label style={styles.label}>🖋️ Muat Naik Tandatangan Digital (PNG / JPG, Bawah 1MB)</label>
               <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleSignatureUpload} style={styles.input} />
               {tandatangan && (
@@ -417,7 +540,7 @@ export default function App() {
               )}
             </div>
 
-            <button type="submit" disabled={loading} style={{ ...styles.button, backgroundColor: '#28a745' }}>
+            <button type="submit" disabled={loading} style={{ ...styles.button, backgroundColor: '#28a745', marginTop: '15px' }}>
               {loading ? 'Menyimpan...' : 'Simpan Perubahan Profil'}
             </button>
           </form>
@@ -438,7 +561,7 @@ export default function App() {
             {isRegistering ? (
               <>
                 <div>
-                  <label style={styles.label}>Pilih Peranan Pengguna</label>
+                  <label style={styles.label}>1. Pilih Peranan Pengguna</label>
                   <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
                     <option value="">-- PILIH PERANAN --</option>
                     <option value="Penjana">Penjana Sisa (Penyelia / Staf Makmal)</option>
@@ -449,7 +572,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label style={styles.label}>E-mel Rasmi UKM</label>
+                  <label style={styles.label}>2. E-mel Rasmi UKM</label>
                   <input
                     type="email"
                     placeholder="e.g. user@ukm.edu.my"
@@ -461,7 +584,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label style={styles.label}>Cipta Kata Laluan</label>
+                  <label style={styles.label}>3. Cipta Kata Laluan</label>
                   <input
                     type="password"
                     placeholder="Masukkan kata laluan"
@@ -473,7 +596,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label style={styles.label}>Sahkan Kata Laluan</label>
+                  <label style={styles.label}>4. Sahkan Kata Laluan</label>
                   <input
                     type="password"
                     placeholder="Sahkan kata laluan sekali lagi"

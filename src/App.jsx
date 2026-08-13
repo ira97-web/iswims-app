@@ -18,9 +18,12 @@ export default function App() {
   const [publicModal, setPublicModal] = useState(null);
   const [activeTab, setActiveTab] = useState('HUB');
 
-  // Profile State
+  // Auth Credentials
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Extended Profile State
   const [nama, setNama] = useState('');
   const [ukmper, setUkmper] = useState('');
   const [jawatan, setJawatan] = useState('');
@@ -31,6 +34,7 @@ export default function App() {
   const [tapakPengumpulan, setTapakPengumpulan] = useState('');
   const [role, setRole] = useState('');
   const [tandatangan, setTandatangan] = useState('');
+  
   const [profile, setProfile] = useState(null);
   const [allWasteRecords, setAllWasteRecords] = useState([]);
 
@@ -193,7 +197,7 @@ export default function App() {
     e.preventDefault();
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.toLowerCase(), password });
-    if (error) alert('Login failed: ' + error.message);
+    if (error) alert('Log masuk gagal: ' + error.message);
     else if (data?.session) {
       await fetchProfile(data.session.user.id);
       await fetchAllWasteRecords();
@@ -201,30 +205,36 @@ export default function App() {
     setLoading(false);
   }
 
+  // SHORTENED REGISTRATION HANDLER
   async function handleRegister(e) {
     e.preventDefault();
+    if (!role) {
+      alert('Sila pilih Peranan Pengguna terlebih dahulu.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      alert('Kata laluan dan pengesahan kata laluan tidak padan!');
+      return;
+    }
+
     setLoading(true);
-    const validMakmalList = senaraiMakmal.filter((m) => m.trim() !== '');
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email: email.toLowerCase(), password });
-    if (authError) alert('Registration failed: ' + authError.message);
-    else if (authData?.user) {
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.toLowerCase(),
+      password
+    });
+
+    if (authError) {
+      alert('Pendaftaran gagal: ' + authError.message);
+    } else if (authData?.user) {
       await supabase.from('profiles').upsert([{
         id: authData.user.id,
-        ukmper: ukmper.toUpperCase(),
-        nama: nama.toUpperCase(),
         email: email.toLowerCase(),
-        jawatan,
-        no_tel: formatPhoneNumber(noTel),
-        fakulti,
-        program_jabatan: programJabatan,
-        senarai_makmal: validMakmalList,
-        tapak_pengumpulan: tapakPengumpulan,
-        role,
-        tandatangan_base64: tandatangan
+        role: role
       }]);
-      alert('Akaun berjaya didaftarkan!');
+      alert('Akaun berjaya didaftarkan! Sila log masuk dan kemaskini profil anda.');
       setIsRegistering(false);
-      await fetchProfile(authData.user.id);
+      setPassword('');
+      setConfirmPassword('');
     }
     setLoading(false);
   }
@@ -248,6 +258,7 @@ export default function App() {
       role,
       tandatangan_base64: tandatangan
     }]);
+
     if (error) alert('Gagal simpan profil: ' + error.message);
     else {
       alert('Profil berjaya dikemaskini!');
@@ -288,7 +299,7 @@ export default function App() {
         </nav>
       )}
 
-      {/* SUB-VIEW HEADER (Shown when inside Penjana, JKKP, Penyelaras, or ROSH views) */}
+      {/* SUB-VIEW HEADER */}
       {session && activeTab !== 'HUB' && (
         <header style={styles.headerBar}>
           <div style={styles.profileLeftGroup}>
@@ -413,100 +424,103 @@ export default function App() {
         </div>
       )}
 
-      {/* LOGIN / REGISTER FORM */}
+      {/* LOGIN & STREAMLINED REGISTRATION FORM */}
       {!session ? (
         <div style={styles.loginCard}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <img src="/iswims-logo.png" alt="i-SWIMS Logo" style={{ height: '120px' }} />
+            <img src="/iswims-logo.png" alt="i-SWIMS Logo" style={{ height: '110px' }} />
+            <h3 style={{ margin: '10px 0 0 0', color: '#0f172a' }}>
+              {isRegistering ? 'Daftar Akaun Baru' : 'Log Masuk i-SWIMS'}
+            </h3>
           </div>
 
           <form onSubmit={isRegistering ? handleRegister : handleLogin} style={styles.form}>
-            {isRegistering && (
+            {isRegistering ? (
               <>
-                <input type="text" placeholder="NAMA PENUH" value={nama} onChange={(e) => setNama(e.target.value.toUpperCase())} required style={{ ...styles.input, textTransform: 'uppercase' }} />
-                <input type="text" placeholder="UKMPER / NO. MATRIK" value={ukmper} onChange={(e) => setUkmper(e.target.value.toUpperCase())} required style={{ ...styles.input, textTransform: 'uppercase' }} />
-                
-                <select value={jawatan} onChange={(e) => setJawatan(e.target.value)} required style={styles.input}>
-                  <option value="">-- PILIH JAWATAN --</option>
-                  {jawatanList.map((j) => <option key={j} value={j}>{j}</option>)}
-                </select>
-
-                <input type="text" placeholder="NO. TELEFON (e.g. 018-3599295)" value={noTel} onChange={(e) => setNoTel(formatPhoneNumber(e.target.value))} required style={styles.input} />
-
                 <div>
-                  <label style={styles.label}>Fakulti / Institusi / Pusat</label>
-                  <select value={fakulti} onChange={(e) => handleFakultiChange(e.target.value)} required style={styles.input}>
-                    <option value="">-- PILIH FAKULTI / INSTITUSI / PUSAT --</option>
-                    {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={styles.label}>Program / Jabatan / Unit</label>
-                  <select value={programJabatan} onChange={(e) => handleProgramChange(e.target.value)} required style={styles.input}>
-                    <option value="">-- PILIH PROGRAM / JABATAN / UNIT --</option>
-                    {availablePrograms.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold' }}>🧪 MAKMAL (MAKSIMUM 5 SLOT)</span>
-                    {senaraiMakmal.length < 5 && (
-                      <button type="button" onClick={handleAddMakmalSlot} style={{ ...styles.smallButton, backgroundColor: '#28a745' }}>+ Slot</button>
-                    )}
-                  </div>
-                  {senaraiMakmal.map((labVal, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
-                      <select value={labVal} onChange={(e) => handleMakmalChange(idx, e.target.value)} required={idx === 0} style={styles.input}>
-                        <option value="">-- PILIH MAKMAL {idx + 1} --</option>
-                        {availableLabs.map((m) => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                      {senaraiMakmal.length > 1 && (
-                        <button type="button" onClick={() => handleRemoveMakmalSlot(idx)} style={{ ...styles.smallButton, backgroundColor: '#dc3545' }}>✕</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <label style={styles.label}>Tempat / Tapak Pengumpulan Sisa</label>
-                  <select value={tapakPengumpulan} onChange={(e) => setTapakPengumpulan(e.target.value)} required style={styles.input}>
-                    <option value="">-- PILIH TEMPAT PENGUMPULAN --</option>
-                    {availableLocations.map((l) => <option key={l} value={l}>{l}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={styles.label}>Peranan Pengguna</label>
+                  <label style={styles.label}>1. Pilih Peranan Pengguna</label>
                   <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
-                    <option value="">-- PILIH PERANAN PENGGUNA --</option>
-                    <option value="Penjana">Penjana Sisa (Lab User)</option>
+                    <option value="">-- PILIH PERANAN --</option>
+                    <option value="Penjana">Penjana Sisa (Penyelia / Staf Makmal)</option>
                     <option value="JKKP">JKKP Bangunan</option>
                     <option value="Penyelaras">Penyelaras BT</option>
                     <option value="ROSH">ROSH-UKM Admin</option>
                   </select>
                 </div>
 
-                <div style={{ backgroundColor: '#eef2f5', padding: '10px', borderRadius: '4px', border: '1px dashed #ccc' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 'bold' }}>🖋️ Tandatangan Digital (Opsional)</label>
-                  <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleSignatureUpload} style={styles.input} />
+                <div>
+                  <label style={styles.label}>2. E-mel Rasmi UKM</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. user@ukm.edu.my"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
+                    required
+                    style={{ ...styles.input, textTransform: 'lowercase' }}
+                  />
                 </div>
+
+                <div>
+                  <label style={styles.label}>3. Cipta Kata Laluan</label>
+                  <input
+                    type="password"
+                    placeholder="Masukkan kata laluan"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    style={styles.input}
+                  />
+                </div>
+
+                <div>
+                  <label style={styles.label}>4. Sahkan Kata Laluan</label>
+                  <input
+                    type="password"
+                    placeholder="Sahkan kata laluan sekali lagi"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    style={styles.input}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <input
+                  type="email"
+                  placeholder="E-mel Rasmi UKM (lowercase)"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value.toLowerCase())}
+                  required
+                  style={{ ...styles.input, textTransform: 'lowercase' }}
+                />
+                <input
+                  type="password"
+                  placeholder="Kata Laluan"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  style={styles.input}
+                />
               </>
             )}
 
-            <input type="email" placeholder="E-mel Rasmi UKM (lowercase)" value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} required style={{ ...styles.input, textTransform: 'lowercase' }} />
-            <input type="password" placeholder="Kata Laluan" value={password} onChange={(e) => setPassword(e.target.value)} required style={styles.input} />
-
             <button type="submit" disabled={loading} style={styles.button}>
-              {loading ? 'Memproses...' : isRegistering ? 'Daftar Pengguna' : 'Log Masuk'}
+              {loading ? 'Memproses...' : isRegistering ? 'Daftar Akaun' : 'Log Masuk'}
             </button>
           </form>
 
           <p style={{ marginTop: '15px', textAlign: 'center', fontSize: '13px' }}>
             {isRegistering ? 'Sudah ada akaun?' : 'Belum ada akaun?'}{' '}
-            <span onClick={() => setIsRegistering(!isRegistering)} style={styles.link}>
-              {isRegistering ? 'Log Masuk di sini' : 'Daftar Akaun'}
+            <span 
+              onClick={() => {
+                setIsRegistering(!isRegistering);
+                setPassword('');
+                setConfirmPassword('');
+              }} 
+              style={styles.link}
+            >
+              {isRegistering ? 'Log Masuk di sini' : 'Daftar Akaun Baru'}
             </span>
           </p>
         </div>

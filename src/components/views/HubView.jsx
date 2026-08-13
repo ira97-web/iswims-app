@@ -137,7 +137,7 @@ export default function HubView({
             <br />
             1. Tarikh akhir penghantaran rekod buangan terjadual siri 3/2026 adalah pada <strong>31 Julai 2026</strong>. Pastikan pengkelasan sisa dijalankan dengan tepat sebelum membuat permohonan.
             <br />
-            2. <strong>Sisa yang mengandungi ASID PIKRIK perlu melalui pelupusan khas.</strong> Kakitangan boleh berhubung dengan Pn. Norly Abd. Aziz (Penyelaras Buangan Terjadual FST).
+            2. <strong>Sisa yang mengandungi ASID PIKRIK perlu melalui pelupusan khas.</strong> Kakitangan boleh berhubung dengan Penyelaras Buangan Terjadual masing-masing.
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { styles } from './styles/styles';
 import { formatPhoneNumber, calculateStorageDays, getQuantityText } from './utils/helpers';
 import { jawatanList, programData, makmalData, lokasiData } from './constants/ukmData';
 
+import HubView from './components/views/HubView';
 import PenjanaView from './components/views/PenjanaView';
 import JkkpView from './components/views/JkkpView';
 import PenyelarasView from './components/views/PenyelarasView';
@@ -29,7 +30,7 @@ export default function App() {
   const [senaraiMakmal, setSenaraiMakmal] = useState(['']);
   const [tapakPengumpulan, setTapakPengumpulan] = useState('');
   const [role, setRole] = useState('');
-  const [tandatangan, setTandatangan] = useState(''); // Base64 string of signature image
+  const [tandatangan, setTandatangan] = useState('');
   const [profile, setProfile] = useState(null);
   const [allWasteRecords, setAllWasteRecords] = useState([]);
 
@@ -110,7 +111,6 @@ export default function App() {
     }
   }
 
-  // Digital Signature File Upload Handler
   function handleSignatureUpload(e) {
     const file = e.target.files[0];
     if (file) {
@@ -288,8 +288,8 @@ export default function App() {
         </nav>
       )}
 
-      {/* AUTHENTICATED HEADER */}
-      {session && (
+      {/* SUB-VIEW HEADER (Shown when inside Penjana, JKKP, Penyelaras, or ROSH views) */}
+      {session && activeTab !== 'HUB' && (
         <header style={styles.headerBar}>
           <div style={styles.profileLeftGroup}>
             <div style={styles.avatarIcon}>👤</div>
@@ -301,7 +301,7 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            {activeTab !== 'HUB' && <button onClick={() => setActiveTab('HUB')} style={{ ...styles.button, backgroundColor: '#6c757d' }}>🏠 Papan Pemuka</button>}
+            <button onClick={() => setActiveTab('HUB')} style={{ ...styles.button, backgroundColor: '#6c757d' }}>🏠 Papan Pemuka</button>
             <button onClick={() => setIsEditingProfile(!isEditingProfile)} style={{ ...styles.button, backgroundColor: '#17a2b8' }}>{isEditingProfile ? 'Batal' : 'Kemaskini Profil'}</button>
             <button onClick={handleLogout} style={{ ...styles.button, backgroundColor: '#d9534f' }}>Log Keluar</button>
           </div>
@@ -395,7 +395,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* DIGITAL SIGNATURE UPLOAD FIELD */}
             <div style={{ backgroundColor: '#eef2f5', padding: '12px', borderRadius: '6px', border: '1px solid #ced4da' }}>
               <label style={styles.label}>🖋️ Muat Naik Tandatangan Digital (PNG / JPG, Bawah 1MB)</label>
               <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleSignatureUpload} style={styles.input} />
@@ -515,20 +514,15 @@ export default function App() {
         <div>
           {/* PORTAL ROUTER */}
           {activeTab === 'HUB' && (
-            <div style={styles.portalGrid}>
-              <div onClick={() => handleNavigate('PENJANA', 'Penjana')} style={{ ...styles.portalCard, borderColor: '#28a745' }}>
-                <div style={styles.portalIcon}>🧪</div><h3>Penjana Sisa</h3>
-              </div>
-              <div onClick={() => handleNavigate('JKKP', 'JKKP')} style={{ ...styles.portalCard, borderColor: '#0056b3' }}>
-                <div style={styles.portalIcon}>🏢</div><h3>JKKP Bangunan</h3>
-              </div>
-              <div onClick={() => handleNavigate('PENYELARAS', 'Penyelaras')} style={{ ...styles.portalCard, borderColor: '#6f42c1' }}>
-                <div style={styles.portalIcon}>📊</div><h3>Penyelaras BT</h3>
-              </div>
-              <div onClick={() => handleNavigate('ROSH', 'ROSH')} style={{ ...styles.portalCard, borderColor: '#dc3545' }}>
-                <div style={styles.portalIcon}>🛡️</div><h3>ROSH UKM</h3>
-              </div>
-            </div>
+            <HubView
+              session={session}
+              profile={profile}
+              allWasteRecords={allWasteRecords}
+              setActiveTab={setActiveTab}
+              handleLogout={handleLogout}
+              setShowProfileModal={setIsEditingProfile}
+              handleNavigate={handleNavigate}
+            />
           )}
 
           {activeTab === 'PENJANA' && (

@@ -7,7 +7,8 @@ export default function HubView({
   allWasteRecords = [],
   setActiveTab,
   handleLogout,
-  setShowProfileModal
+  setShowProfileModal,
+  handleNavigate
 }) {
   const [showGuideModal, setShowGuideModal] = useState(false);
 
@@ -36,7 +37,7 @@ export default function HubView({
     const days = calculateStorageDays(r.created_at || r.tarikh_pelupusan);
     if (days > maksSimpanan) maksSimpanan = days;
   });
-  if (maksSimpanan === 0) maksSimpanan = 153; // Default fallback from reference image
+  if (maksSimpanan === 0) maksSimpanan = 153; // Default fallback
 
   // Calculate Total Weight in Metric Tons (MT)
   let totalKg = 0;
@@ -67,7 +68,7 @@ export default function HubView({
               {profile?.nama || session?.user?.email || 'PENGGUNA SYSTEM'}
             </div>
             <div style={{ fontSize: '11px', color: '#475569' }}>
-              {profile?.peranan || 'ROSH'} - {profile?.fakulti || 'FST'}
+              {profile?.peranan || profile?.role || 'ROSH'} - {profile?.fakulti || 'FST'}
             </div>
             <div style={{ fontSize: '11px', backgroundColor: '#e2e8f0', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '2px', fontWeight: 'bold', color: '#0056b3' }}>
               ID: {profile?.ukmper || 'K025997'}
@@ -162,25 +163,25 @@ export default function HubView({
           </div>
         </div>
 
-        {/* 5. MAIN ROLE MODULE BUTTONS (GRID) */}
+        {/* 5. MAIN ROLE MODULE BUTTONS (GRID WITH PERMISSION ROUTING) */}
         <h3 style={{ fontSize: '16px', color: '#1e293b', marginBottom: '12px', fontWeight: 'bold' }}>Modul Pengurusan Sisa</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-          <button onClick={() => setActiveTab('PENJANA')} style={moduleButtonStyle('#16a34a')}>
+          <button onClick={() => handleNavigate ? handleNavigate('PENJANA', 'Penjana') : setActiveTab('PENJANA')} style={moduleButtonStyle('#16a34a')}>
             <span style={{ fontSize: '28px' }}>🧪</span>
             <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Penjana Sisa</span>
           </button>
 
-          <button onClick={() => setActiveTab('JKKP')} style={moduleButtonStyle('#0284c7')}>
+          <button onClick={() => handleNavigate ? handleNavigate('JKKP', 'JKKP') : setActiveTab('JKKP')} style={moduleButtonStyle('#0284c7')}>
             <span style={{ fontSize: '28px' }}>🏢</span>
             <span style={{ fontSize: '16px', fontWeight: 'bold' }}>JKKP Bangunan</span>
           </button>
 
-          <button onClick={() => setActiveTab('PENYELARAS')} style={moduleButtonStyle('#9333ea')}>
+          <button onClick={() => handleNavigate ? handleNavigate('PENYELARAS', 'Penyelaras') : setActiveTab('PENYELARAS')} style={moduleButtonStyle('#9333ea')}>
             <span style={{ fontSize: '28px' }}>📊</span>
             <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Penyelaras BT</span>
           </button>
 
-          <button onClick={() => setActiveTab('ROSH')} style={moduleButtonStyle('#dc2626')}>
+          <button onClick={() => handleNavigate ? handleNavigate('ROSH', 'ROSH') : setActiveTab('ROSH')} style={moduleButtonStyle('#dc2626')}>
             <span style={{ fontSize: '28px' }}>🛡️</span>
             <span style={{ fontSize: '16px', fontWeight: 'bold' }}>ROSH UKM</span>
           </button>

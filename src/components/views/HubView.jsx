@@ -12,17 +12,19 @@ export default function HubView({
 }) {
   const [showGuideModal, setShowGuideModal] = useState(false);
 
-  // 1. CALCULATE DYNAMIC METRICS FROM WASTE INVENTORY DATA
-  const totalKodSW = new Set(allWasteRecords.map((r) => r.kod_sw).filter(Boolean)).size || 14;
-  const totalPtj = new Set(allWasteRecords.map((r) => r.fakulti || profile?.fakulti).filter(Boolean)).size || 3;
-  const totalMakmal = new Set(allWasteRecords.map((r) => r.nama_makmal).filter(Boolean)).size || 75;
+  // 1. STAT METRICS CALCULATIONS
+  // Total available SW categories in the system dropdown
+  const totalKodSW = 16; 
+  
+  const totalPtj = new Set(allWasteRecords.map((r) => r.fakulti || profile?.fakulti).filter(Boolean)).size || 1;
+  const totalMakmal = new Set(allWasteRecords.map((r) => r.nama_makmal).filter(Boolean)).size || 1;
 
-  // Calculate SW Dominan (Most frequent SW code)
+  // Calculate SW Dominan (Most frequent SW code in DB)
   const swCounts = {};
   allWasteRecords.forEach((r) => {
     if (r.kod_sw) swCounts[r.kod_sw] = (swCounts[r.kod_sw] || 0) + 1;
   });
-  let swDominan = 'SW 430';
+  let swDominan = 'SW206';
   let maxCount = 0;
   Object.entries(swCounts).forEach(([sw, count]) => {
     if (count > maxCount) {
@@ -31,13 +33,12 @@ export default function HubView({
     }
   });
 
-  // Calculate Max Storage Days across records
+  // Calculate Max Storage Days
   let maksSimpanan = 0;
   allWasteRecords.forEach((r) => {
     const days = calculateStorageDays(r.created_at || r.tarikh_pelupusan);
     if (days > maksSimpanan) maksSimpanan = days;
   });
-  if (maksSimpanan === 0) maksSimpanan = 153;
 
   // Calculate Total Weight in Metric Tons (MT)
   let totalKg = 0;
@@ -45,14 +46,13 @@ export default function HubView({
     const kg = (r.kilogram_kimia || 0) + (r.lain_lain_kg || 0) + (r.peralatan_kaca_kg || 0);
     totalKg += kg;
   });
-  const jumlahBeratMT = totalKg > 0 ? (totalKg / 1000).toFixed(2) : '29.12';
+  const jumlahBeratMT = (totalKg / 1000).toFixed(2);
 
   return (
     <div style={{ backgroundColor: '#f4f6f9', minHeight: '100vh', paddingBottom: '40px', fontFamily: 'Arial, sans-serif' }}>
       
       {/* 1. TOP HEADER NAVIGATION */}
       <header style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '10px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        {/* UKM & i-SWIMS Logos Top Left */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img 
             src="/ukm-logo.png" 
@@ -69,7 +69,6 @@ export default function HubView({
           />
         </div>
 
-        {/* User Profile & Actions Top Right */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a' }}>
@@ -102,7 +101,7 @@ export default function HubView({
 
       <div style={{ maxWidth: '1200px', margin: '20px auto', padding: '0 20px' }}>
 
-        {/* 2. HERO BANNER WITH CLEAN WHITE TEXT */}
+        {/* 2. HERO BANNER */}
         <div style={{ backgroundColor: '#1d7f68', color: '#ffffff', padding: '30px', borderRadius: '12px', position: 'relative', overflow: 'hidden', marginBottom: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
           <div style={{ backgroundColor: '#fbbf24', color: '#000', fontSize: '11px', fontWeight: 'bold', padding: '4px 10px', borderRadius: '20px', display: 'inline-block', marginBottom: '12px' }}>
             ✔ Portal Rasmi | Sistem Aktif
@@ -137,7 +136,7 @@ export default function HubView({
             <br />
             1. Tarikh akhir penghantaran rekod buangan terjadual siri 3/2026 adalah pada <strong>31 Julai 2026</strong>. Pastikan pengkelasan sisa dijalankan dengan tepat sebelum membuat permohonan.
             <br />
-            2. <strong>Sisa yang mengandungi ASID PIKRIK perlu melalui pelupusan khas.</strong> Kakitangan boleh berhubung dengan Penyelaras Buangan Terjadual masing-masing.
+            2. <strong>Sisa yang mengandungi ASID PIKRIK perlu melalui pelupusan khas.</strong> Kakitangan boleh berhubung dengan Pn. Norly Abd. Aziz (Penyelaras Buangan Terjadual FST).
           </div>
         </div>
 

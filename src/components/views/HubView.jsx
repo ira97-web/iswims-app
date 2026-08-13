@@ -102,7 +102,7 @@ export default function HubView({
 
       <div style={{ maxWidth: '1200px', margin: '20px auto', padding: '0 20px' }}>
 
-        {/* 2. HERO BANNER WITH WHITE TEXT OUTLINE ON TITLE */}
+        {/* 2. HERO BANNER WITH CLEAN WHITE TEXT */}
         <div style={{ backgroundColor: '#1d7f68', color: '#ffffff', padding: '30px', borderRadius: '12px', position: 'relative', overflow: 'hidden', marginBottom: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
           <div style={{ backgroundColor: '#fbbf24', color: '#000', fontSize: '11px', fontWeight: 'bold', padding: '4px 10px', borderRadius: '20px', display: 'inline-block', marginBottom: '12px' }}>
             ✔ Portal Rasmi | Sistem Aktif
@@ -111,17 +111,15 @@ export default function HubView({
           <h1 style={{
             margin: '0 0 8px 0',
             fontSize: '28px',
-            fontWeight: '900',
+            fontWeight: '800',
             lineHeight: 1.3,
-            color: '#000000',
-            WebkitTextStroke: '1.2px #ffffff',
-            textShadow: '-1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff, 0px 2px 4px rgba(0,0,0,0.4)',
-            letterSpacing: '0.3px'
+            color: '#ffffff',
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}>
             Sistem Maklumat & Pemantauan<br />Buangan Terjadual Berpusat
           </h1>
 
-          <p style={{ margin: 0, fontSize: '14px', opacity: 0.95, fontWeight: '600' }}>
+          <p style={{ margin: 0, fontSize: '14px', opacity: 0.95, fontWeight: '500' }}>
             Fakulti Sains & Teknologi, Universiti Kebangsaan Malaysia
           </p>
           <p style={{ margin: '6px 0 0 0', fontSize: '13px', fontStyle: 'italic', opacity: 0.85 }}>

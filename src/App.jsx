@@ -438,7 +438,7 @@ export default function App() {
             {isRegistering ? (
               <>
                 <div>
-                  <label style={styles.label}>1. Pilih Peranan Pengguna</label>
+                  <label style={styles.label}>Pilih Peranan Pengguna</label>
                   <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
                     <option value="">-- PILIH PERANAN --</option>
                     <option value="Penjana">Penjana Sisa (Penyelia / Staf Makmal)</option>
@@ -449,7 +449,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label style={styles.label}>2. E-mel Rasmi UKM</label>
+                  <label style={styles.label}>E-mel Rasmi UKM</label>
                   <input
                     type="email"
                     placeholder="e.g. user@ukm.edu.my"
@@ -461,7 +461,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label style={styles.label}>3. Cipta Kata Laluan</label>
+                  <label style={styles.label}>Cipta Kata Laluan</label>
                   <input
                     type="password"
                     placeholder="Masukkan kata laluan"
@@ -473,7 +473,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label style={styles.label}>4. Sahkan Kata Laluan</label>
+                  <label style={styles.label}>Sahkan Kata Laluan</label>
                   <input
                     type="password"
                     placeholder="Sahkan kata laluan sekali lagi"

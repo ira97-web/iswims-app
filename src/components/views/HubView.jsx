@@ -37,7 +37,7 @@ export default function HubView({
     const days = calculateStorageDays(r.created_at || r.tarikh_pelupusan);
     if (days > maksSimpanan) maksSimpanan = days;
   });
-  if (maksSimpanan === 0) maksSimpanan = 153; // Default fallback
+  if (maksSimpanan === 0) maksSimpanan = 153;
 
   // Calculate Total Weight in Metric Tons (MT)
   let totalKg = 0;
@@ -50,15 +50,13 @@ export default function HubView({
   return (
     <div style={{ backgroundColor: '#f4f6f9', minHeight: '100vh', paddingBottom: '40px', fontFamily: 'Arial, sans-serif' }}>
       
-      {/* 1. TOP HEADER NAVIGATION */}
+      {/* 1. TOP HEADER NAVIGATION WITH LOGOS */}
       <header style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '12px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        {/* UKM Logo Top Left */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* UKM & i-SWIMS Logos Top Left */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <img src="/ukm-logo.png" alt="UKM Logo" style={{ height: '48px', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
-          <div>
-            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#1e293b' }}>i-SWIMS UKM</div>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>Universiti Kebangsaan Malaysia</div>
-          </div>
+          <div style={{ height: '32px', width: '1px', backgroundColor: '#cbd5e1' }}></div>
+          <img src="/iswims-logo.png" alt="i-SWIMS Logo" style={{ height: '45px', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
 
         {/* User Profile & Actions Top Right */}
@@ -187,7 +185,7 @@ export default function HubView({
           </button>
         </div>
 
-        {/* 6. NEW BUTTON: TATACARA PENGGUNAAN SISTEM i-SWIMS */}
+        {/* 6. BUTTON: TATACARA PENGGUNAAN SISTEM i-SWIMS */}
         <div style={{ textAlign: 'center', marginTop: '25px' }}>
           <button
             onClick={() => setShowGuideModal(true)}

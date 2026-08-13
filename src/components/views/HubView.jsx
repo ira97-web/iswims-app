@@ -50,13 +50,23 @@ export default function HubView({
   return (
     <div style={{ backgroundColor: '#f4f6f9', minHeight: '100vh', paddingBottom: '40px', fontFamily: 'Arial, sans-serif' }}>
       
-      {/* 1. TOP HEADER NAVIGATION WITH LOGOS */}
-      <header style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '12px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* 1. TOP HEADER NAVIGATION WITH LARGER & CLOSER LOGOS */}
+      <header style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '10px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {/* UKM & i-SWIMS Logos Top Left */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <img src="/ukm-logo.png" alt="UKM Logo" style={{ height: '48px', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
-          <div style={{ height: '32px', width: '1px', backgroundColor: '#cbd5e1' }}></div>
-          <img src="/iswims-logo.png" alt="i-SWIMS Logo" style={{ height: '45px', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img 
+            src="/ukm-logo.png" 
+            alt="UKM Logo" 
+            style={{ height: '52px', objectFit: 'contain' }} 
+            onError={(e) => { e.target.style.display = 'none'; }} 
+          />
+          <div style={{ height: '38px', width: '1px', backgroundColor: '#cbd5e1', margin: '0 2px' }}></div>
+          <img 
+            src="/iswims-logo.png" 
+            alt="i-SWIMS Logo" 
+            style={{ height: '68px', objectFit: 'contain' }} 
+            onError={(e) => { e.target.style.display = 'none'; }} 
+          />
         </div>
 
         {/* User Profile & Actions Top Right */}
@@ -161,7 +171,7 @@ export default function HubView({
           </div>
         </div>
 
-        {/* 5. MAIN ROLE MODULE BUTTONS (GRID WITH PERMISSION ROUTING) */}
+        {/* 5. MAIN ROLE MODULE BUTTONS */}
         <h3 style={{ fontSize: '16px', color: '#1e293b', marginBottom: '12px', fontWeight: 'bold' }}>Modul Pengurusan Sisa</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px', marginBottom: '20px' }}>
           <button onClick={() => handleNavigate ? handleNavigate('PENJANA', 'Penjana') : setActiveTab('PENJANA')} style={moduleButtonStyle('#16a34a')}>

@@ -94,6 +94,7 @@ export default function App() {
     }
   }
 
+  // ENRICHED FETCH FUNCTION: MAPS USER PROFILE DATA TO RECORDS
   async function fetchAllWasteRecords() {
     const { data: records, error: wasteError } = await supabase
       .from('rekod_sisa')
@@ -102,20 +103,25 @@ export default function App() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, nama, email');
+      .select('id, nama, email, program_jabatan, fakulti, bangunan');
 
     if (records) {
       const profileMap = {};
       if (profiles) {
         profiles.forEach((p) => {
-          profileMap[p.id] = p.nama || p.email;
+          profileMap[p.id] = p;
         });
       }
 
-      const enrichedRecords = records.map((r) => ({
-        ...r,
-        nama_penjana: profileMap[r.user_id] || 'Pengguna UKM'
-      }));
+      const enrichedRecords = records.map((r) => {
+        const userProfile = profileMap[r.user_id] || {};
+        return {
+          ...r,
+          nama_penjana: userProfile.nama || userProfile.email || 'Pengguna UKM',
+          program_jabatan: r.program_jabatan || r.jabatan || userProfile.program_jabatan || '',
+          bangunan: r.bangunan || userProfile.bangunan || ''
+        };
+      });
 
       setAllWasteRecords(enrichedRecords);
     } else {
@@ -297,12 +303,12 @@ export default function App() {
       tandatangan_base64: tandatangan
     };
 
-    // Role-specific field mapping
     if (activeRole === 'Penjana') {
       payload.fakulti = fakulti;
       payload.program_jabatan = programJabatan;
       payload.senarai_makmal = validMakmalList;
       payload.tapak_pengumpulan = tapakPengumpulan;
+      payload.bangunan = bangunan; // Included Bangunan for Penjana Sisa
     } else if (activeRole === 'JKKP') {
       payload.fakulti = fakulti;
       payload.bangunan = bangunan;
@@ -412,7 +418,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* ROLE 1: PENJANA SISA FIELDS */}
+            {/* ROLE 1: PENJANA SISA FIELDS (INCLUDES BANGUNAN) */}
             {activeRole === 'Penjana' && (
               <>
                 <div style={styles.gridTwo}>
@@ -432,7 +438,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div style={{ backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e9ecef' }}>
+                <div style={{ backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e9ecef', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <label style={{ ...styles.label, margin: 0 }}>🧪 Senarai Makmal Penyeliaan (Maksimum 5 Makmal)</label>
                     {senaraiMakmal.length < 5 && (
@@ -454,26 +460,34 @@ export default function App() {
 
                 <div style={styles.gridTwo}>
                   <div>
+                    <label style={styles.label}>Bangunan</label>
+                    <select value={bangunan} onChange={(e) => setBangunan(e.target.value)} required style={styles.input}>
+                      <option value="">-- PILIH BANGUNAN --</option>
+                      {bangunanList.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div>
                     <label style={styles.label}>Tapak Pengumpulan Sisa</label>
                     <select value={tapakPengumpulan} onChange={(e) => setTapakPengumpulan(e.target.value)} required style={styles.input}>
                       <option value="">-- PILIH TAPAK PENGUMPULAN --</option>
                       {availableLocations.map((l) => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label style={styles.label}>Peranan Pengguna</label>
-                    <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
-                      <option value="Penjana">Penjana Sisa (Lab User)</option>
-                      <option value="JKKP">JKKP Bangunan</option>
-                      <option value="Penyelaras">Penyelaras BT</option>
-                      <option value="ROSH">ROSH-UKM Admin</option>
-                    </select>
-                  </div>
+                </div>
+
+                <div style={{ marginTop: '10px' }}>
+                  <label style={styles.label}>Peranan Pengguna</label>
+                  <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
+                    <option value="Penjana">Penjana Sisa (Lab User)</option>
+                    <option value="JKKP">JKKP Bangunan</option>
+                    <option value="Penyelaras">Penyelaras BT</option>
+                    <option value="ROSH">ROSH-UKM Admin</option>
+                  </select>
                 </div>
               </>
             )}
 
-            {/* ROLE 2: JKKP BANGUNAN FIELDS (REMOVED PROGRAM/JABATAN) */}
+            {/* ROLE 2: JKKP BANGUNAN FIELDS */}
             {activeRole === 'JKKP' && (
               <div style={styles.gridTwo}>
                 <div>
@@ -539,7 +553,7 @@ export default function App() {
               </div>
             )}
 
-            {/* DIGITAL SIGNATURE UPLOAD FIELD (COMMON FOR ALL) */}
+            {/* DIGITAL SIGNATURE UPLOAD FIELD */}
             <div style={{ backgroundColor: '#eef2f5', padding: '12px', borderRadius: '6px', border: '1px solid #ced4da', marginTop: '10px' }}>
               <label style={styles.label}>🖋️ Muat Naik Tandatangan Digital (PNG / JPG, Bawah 1MB)</label>
               <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleSignatureUpload} style={styles.input} />

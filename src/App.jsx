@@ -95,9 +95,33 @@ export default function App() {
   }
 
   async function fetchAllWasteRecords() {
-    const { data, error } = await supabase.from('rekod_sisa').select('*').order('created_at', { ascending: false });
-    if (error) console.error(error);
-    else setAllWasteRecords(data || []);
+    const { data: records, error: wasteError } = await supabase
+      .from('rekod_sisa')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, nama, email');
+
+    if (records) {
+      const profileMap = {};
+      if (profiles) {
+        profiles.forEach((p) => {
+          profileMap[p.id] = p.nama || p.email;
+        });
+      }
+
+      const enrichedRecords = records.map((r) => ({
+        ...r,
+        nama_penjana: profileMap[r.user_id] || 'Pengguna UKM'
+      }));
+
+      setAllWasteRecords(enrichedRecords);
+    } else {
+      if (wasteError) console.error(wasteError);
+      setAllWasteRecords([]);
+    }
   }
 
   function handleFakultiChange(newFakulti) {
@@ -273,7 +297,7 @@ export default function App() {
       tandatangan_base64: tandatangan
     };
 
-    // Role-specific fields
+    // Role-specific field mapping
     if (activeRole === 'Penjana') {
       payload.fakulti = fakulti;
       payload.program_jabatan = programJabatan;
@@ -281,7 +305,6 @@ export default function App() {
       payload.tapak_pengumpulan = tapakPengumpulan;
     } else if (activeRole === 'JKKP') {
       payload.fakulti = fakulti;
-      payload.program_jabatan = programJabatan;
       payload.bangunan = bangunan;
     } else if (activeRole === 'Penyelaras') {
       payload.fakulti = fakulti;
@@ -450,45 +473,33 @@ export default function App() {
               </>
             )}
 
-            {/* ROLE 2: JKKP BANGUNAN FIELDS */}
+            {/* ROLE 2: JKKP BANGUNAN FIELDS (REMOVED PROGRAM/JABATAN) */}
             {activeRole === 'JKKP' && (
-              <>
-                <div style={styles.gridTwo}>
-                  <div>
-                    <label style={styles.label}>Fakulti / Institusi / Pusat</label>
-                    <select value={fakulti} onChange={(e) => handleFakultiChange(e.target.value)} required style={styles.input}>
-                      <option value="">-- PILIH FAKULTI --</option>
-                      {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={styles.label}>Program / Jabatan / Unit</label>
-                    <select value={programJabatan} onChange={(e) => handleProgramChange(e.target.value)} required style={styles.input}>
-                      <option value="">-- PILIH PROGRAM / JABATAN --</option>
-                      {availablePrograms.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
+              <div style={styles.gridTwo}>
+                <div>
+                  <label style={styles.label}>Fakulti / Institusi / Pusat</label>
+                  <select value={fakulti} onChange={(e) => handleFakultiChange(e.target.value)} required style={styles.input}>
+                    <option value="">-- PILIH FAKULTI --</option>
+                    {Object.keys(programData).map((f) => <option key={f} value={f}>{f}</option>)}
+                  </select>
                 </div>
-
-                <div style={styles.gridTwo}>
-                  <div>
-                    <label style={styles.label}>Bangunan</label>
-                    <select value={bangunan} onChange={(e) => setBangunan(e.target.value)} required style={styles.input}>
-                      <option value="">-- PILIH BANGUNAN --</option>
-                      {bangunanList.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={styles.label}>Peranan Pengguna</label>
-                    <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
-                      <option value="Penjana">Penjana Sisa (Lab User)</option>
-                      <option value="JKKP">JKKP Bangunan</option>
-                      <option value="Penyelaras">Penyelaras BT</option>
-                      <option value="ROSH">ROSH-UKM Admin</option>
-                    </select>
-                  </div>
+                <div>
+                  <label style={styles.label}>Bangunan</label>
+                  <select value={bangunan} onChange={(e) => setBangunan(e.target.value)} required style={styles.input}>
+                    <option value="">-- PILIH BANGUNAN --</option>
+                    {bangunanList.map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
                 </div>
-              </>
+                <div>
+                  <label style={styles.label}>Peranan Pengguna</label>
+                  <select value={role} onChange={(e) => setRole(e.target.value)} required style={styles.input}>
+                    <option value="Penjana">Penjana Sisa (Lab User)</option>
+                    <option value="JKKP">JKKP Bangunan</option>
+                    <option value="Penyelaras">Penyelaras BT</option>
+                    <option value="ROSH">ROSH-UKM Admin</option>
+                  </select>
+                </div>
+              </div>
             )}
 
             {/* ROLE 3: PENYELARAS BT FIELDS */}
@@ -666,7 +677,7 @@ export default function App() {
             <PenjanaView session={session} profile={profile} allWasteRecords={allWasteRecords} fetchAllWasteRecords={fetchAllWasteRecords} setActiveTab={setActiveTab} />
           )}
           {activeTab === 'JKKP' && (
-            <JkkpView allWasteRecords={allWasteRecords} handleVerifyStatus={handleVerifyStatus} handlePrintSummaryPdf={handlePrintSummaryPdf} setActiveTab={setActiveTab} />
+            <JkkpView allWasteRecords={allWasteRecords} profile={profile} handleVerifyStatus={handleVerifyStatus} handlePrintSummaryPdf={handlePrintSummaryPdf} setActiveTab={setActiveTab} />
           )}
           {activeTab === 'PENYELARAS' && (
             <PenyelarasView profile={profile} facultyWasteRecords={facultyWasteRecords} handleVerifyStatus={handleVerifyStatus} handlePrintSummaryPdf={handlePrintSummaryPdf} setActiveTab={setActiveTab} />

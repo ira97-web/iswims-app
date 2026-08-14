@@ -5,6 +5,29 @@ import { calculateStorageDays, formatMalayDate, getQuantityText, getStatusBadgeS
 import { styles } from '../../styles/styles';
 import { handlePrintBatchRoshLabels } from '../../utils/printRoshLabel';
 
+// ==========================================
+// SENARAI STATUS TERKUNCI (RESTRICTED STATUSES)
+// ==========================================
+const RESTRICTED_STATUSES = [
+  'DISAHKAN_JKKP',
+  'DISAHKAN',
+  'SAH',
+  'APPROVED',
+  'DISAHKAN OLEH JKKP BANGUNAN',
+  'DIPULANGKAN OLEH JKKP BANGUNAN',
+  'DISAHKAN OLEH PENYELARAS BT',
+  'DISAHKAN OLEH PENYELARAS',
+  'DISAHKAN OLEH ROSH UKM',
+  'DILUPUSKAN',
+  'SELESAI'
+];
+
+function canModifyOrDelete(status) {
+  if (!status) return true;
+  const upperStatus = status.toUpperCase();
+  return !RESTRICTED_STATUSES.some((restricted) => upperStatus.includes(restricted));
+}
+
 export default function PenjanaView({ session, profile, allWasteRecords, fetchAllWasteRecords, setActiveTab }) {
   const [loading, setLoading] = useState(false);
   const [editingWasteId, setEditingWasteId] = useState(null);
@@ -95,6 +118,11 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   }
 
   function handleEditWasteItem(item) {
+    if (!canModifyOrDelete(item.status)) {
+      alert("Tindakan tidak dibenarkan: Rekod telah diproses oleh pihak atasan. Sila hubungi Pegawai/Admin i-SWIMS untuk bantuan.");
+      return;
+    }
+
     setEditingWasteId(item.id_sisa);
     setSisaMakmal(item.nama_makmal || '');
     setKategoriMakmal(item.kategori_makmal || '');
@@ -116,6 +144,42 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
       }
     ]);
     window.scrollTo({ top: 200, behavior: 'smooth' });
+  }
+
+  // FUNGSI HAPUS REKOD SISA
+  async function handleDeleteWaste(id_sisa, status) {
+    if (!canModifyOrDelete(status)) {
+      alert("Tindakan tidak dibenarkan: Rekod ini telah diproses oleh pihak atasan. Sila hubungi Pegawai/Admin i-SWIMS untuk bantuan.");
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Adakah anda pasti ingin menghapus rekod sisa "${id_sisa}"?\n\nTindakan ini tidak boleh dibatalkan.`
+    );
+
+    if (!confirmDelete) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('rekod_sisa')
+        .delete()
+        .eq('id_sisa', id_sisa);
+
+      if (error) throw error;
+
+      alert(`Rekod sisa ${id_sisa} berjaya dihapuskan.`);
+      setSelectedWasteIds((prev) => prev.filter((id) => id !== id_sisa));
+      if (editingWasteId === id_sisa) {
+        resetWasteForm();
+      }
+      fetchAllWasteRecords();
+    } catch (err) {
+      console.error("Ralat memadam rekod sisa:", err);
+      alert(`Gagal menghapus rekod: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleUploadSds(id_sisa, file) {
@@ -278,165 +342,165 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
       : `___________________________`;
 
     const htmlContent = `
-      <html>
-        <head>
-          <title>${docTitle} - ${selectedRecords.length} Item</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 12px; line-height: 1.4; }
-            .rosh-header-box { width: 100%; border-collapse: collapse; border: 2px solid #555; background-color: #dcd8c0; margin-bottom: 15px; }
-            .rosh-header-box td { border: 2px solid #555; padding: 6px 10px; vertical-align: middle; }
-            .logo-cell { width: 25%; background-color: #ffffff; text-align: center; padding: 8px !important; }
-            .doc-code-cell { width: 45%; font-weight: bold; font-size: 13px; color: #000; }
-            .effective-date-cell { width: 30%; font-weight: bold; font-size: 12px; color: #000; }
-            .effective-date-cell span { color: #0056b3; }
-            .doc-title-cell { font-weight: bold; font-size: 13px; color: #000; text-transform: uppercase; }
-            .attention-text { font-weight: bold; font-size: 13px; margin-bottom: 15px; text-transform: uppercase; }
-            .meta-table { width: 100%; margin-bottom: 15px; font-size: 12px; line-height: 1.6; }
-            .meta-table td { padding: 2px 0; vertical-align: top; }
-            .meta-label { font-weight: bold; width: 260px; }
-            table.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            table.data-table th, table.data-table td { border: 1px solid #000; padding: 6px 8px; text-align: center; font-size: 11px; }
-            table.data-table th { background-color: #f2f2f2; font-weight: bold; }
-            .verification-box { width: 100%; border-collapse: collapse; border: 2px solid #000; margin-top: 30px; }
-            .verification-box td { width: 50%; border-right: 2px solid #000; padding: 12px 15px; vertical-align: top; font-size: 12px; line-height: 1.8; }
-            .verification-box td:last-child { border-right: none; }
-            .sig-line-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-            .sig-line-table td { border: none !important; padding: 2px 0 !important; }
-            .sig-line-label { font-weight: bold; width: 95px; }
-          </style>
-        </head>
-        <body>
-          <table class="rosh-header-box">
-            <tr>
-              <td rowspan="2" class="logo-cell">
-                <img src="/ukm-logo.png" id="ukmLogoImg" alt="UKM Logo" style="height: 52px; width: auto; object-fit: contain;" />
-              </td>
-              <td class="doc-code-cell">${docCode}</td>
-              <td class="effective-date-cell">Tarikh Kuat kuasa: <span>01/01/2025</span></td>
-            </tr>
-            <tr>
-              <td colspan="2" class="doc-title-cell">${docTitle}</td>
-            </tr>
-          </table>
+<html>
+<head>
+<title>${docTitle} - ${selectedRecords.length} Item</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; color: #000; font-size: 12px; line-height: 1.4; }
+.rosh-header-box { width: 100%; border-collapse: collapse; border: 2px solid #555; background-color: #dcd8c0; margin-bottom: 15px; }
+.rosh-header-box td { border: 2px solid #555; padding: 6px 10px; vertical-align: middle; }
+.logo-cell { width: 25%; background-color: #ffffff; text-align: center; padding: 8px !important; }
+.doc-code-cell { width: 45%; font-weight: bold; font-size: 13px; color: #000; }
+.effective-date-cell { width: 30%; font-weight: bold; font-size: 12px; color: #000; }
+.effective-date-cell span { color: #0056b3; }
+.doc-title-cell { font-weight: bold; font-size: 13px; color: #000; text-transform: uppercase; }
+.attention-text { font-weight: bold; font-size: 13px; margin-bottom: 15px; text-transform: uppercase; }
+.meta-table { width: 100%; margin-bottom: 15px; font-size: 12px; line-height: 1.6; }
+.meta-table td { padding: 2px 0; vertical-align: top; }
+.meta-label { font-weight: bold; width: 260px; }
+table.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+table.data-table th, table.data-table td { border: 1px solid #000; padding: 6px 8px; text-align: center; font-size: 11px; }
+table.data-table th { background-color: #f2f2f2; font-weight: bold; }
+.verification-box { width: 100%; border-collapse: collapse; border: 2px solid #000; margin-top: 30px; }
+.verification-box td { width: 50%; border-right: 2px solid #000; padding: 12px 15px; vertical-align: top; font-size: 12px; line-height: 1.8; }
+.verification-box td:last-child { border-right: none; }
+.sig-line-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.sig-line-table td { border: none !important; padding: 2px 0 !important; }
+.sig-line-label { font-weight: bold; width: 95px; }
+</style>
+</head>
+<body>
+<table class="rosh-header-box">
+<tr>
+<td rowspan="2" class="logo-cell">
+<img src="/ukm-logo.png" id="ukmLogoImg" alt="UKM Logo" style="height: 52px; width: auto; object-fit: contain;" />
+</td>
+<td class="doc-code-cell">${docCode}</td>
+<td class="effective-date-cell">Tarikh Kuat kuasa: <span>01/01/2025</span></td>
+</tr>
+<tr>
+<td colspan="2" class="doc-title-cell">${docTitle}</td>
+</tr>
+</table>
 
-          ${!isSw409 ? '<div class="attention-text">PERHATIAN: SALINAN INI UNTUK SIMPANAN MAKMAL</div>' : ''}
+${!isSw409 ? '<div class="attention-text">PERHATIAN: SALINAN INI UNTUK SIMPANAN MAKMAL</div>' : ''}
 
-          <table class="meta-table">
-            ${isSw409 ? `<tr><td class="meta-label">Kod Buangan Terjadual</td><td>: SW409</td></tr>` : ''}
-            <tr>
-              <td class="meta-label">
-                Inventori Buangan Terjadual Bulan<br/>
-                <span style="font-style: italic; font-weight: normal; font-size: 10px; color: #333;">(dilengkapkan mengikut bulan bagi setiap makmal)</span>
-              </td>
-              <td style="vertical-align: top;">: ${monthFormatted}</td>
-            </tr>
-            <tr><td class="meta-label">Tarikh Pelupusan</td><td>: ${dateFormatted}</td></tr>
-            <tr><td class="meta-label">Makmal</td><td>: ${makmalName}</td></tr>
-            <tr><td class="meta-label">Program/ Jabatan</td><td>: ${programName}</td></tr>
-            <tr><td class="meta-label">Fakulti/ Institut/ Pusat</td><td>: ${firstItem.fakulti || profile?.fakulti || 'FST'}</td></tr>
-            <tr><td class="meta-label">Lokasi Pengumpulan</td><td>: ${lokasiPengumpulan}</td></tr>
-            <tr>
-              <td class="meta-label">Kategori Makmal <span style="color: #0056b3; font-style: italic;">(Sila tandakan)</span></td>
-              <td>: ${katMakmal}</td>
-            </tr>
-          </table>
+<table class="meta-table">
+${isSw409 ? `<tr><td class="meta-label">Kod Buangan Terjadual</td><td>: SW409</td></tr>` : ''}
+<tr>
+<td class="meta-label">
+Inventori Buangan Terjadual Bulan<br/>
+<span style="font-style: italic; font-weight: normal; font-size: 10px; color: #333;">(dilengkapkan mengikut bulan bagi setiap makmal)</span>
+</td>
+<td style="vertical-align: top;">: ${monthFormatted}</td>
+</tr>
+<tr><td class="meta-label">Tarikh Pelupusan</td><td>: ${dateFormatted}</td></tr>
+<tr><td class="meta-label">Makmal</td><td>: ${makmalName}</td></tr>
+<tr><td class="meta-label">Program/ Jabatan</td><td>: ${programName}</td></tr>
+<tr><td class="meta-label">Fakulti/ Institut/ Pusat</td><td>: ${firstItem.fakulti || profile?.fakulti || 'FST'}</td></tr>
+<tr><td class="meta-label">Lokasi Pengumpulan</td><td>: ${lokasiPengumpulan}</td></tr>
+<tr>
+<td class="meta-label">Kategori Makmal <span style="color: #0056b3; font-style: italic;">(Sila tandakan)</span></td>
+<td>: ${katMakmal}</td>
+</tr>
+</table>
 
-          ${isSw409 ? `
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th rowspan="2" style="width: 40px;">BIL.</th>
-                  <th colspan="4">KUANTITI</th>
-                </tr>
-                <tr>
-                  <th>Botol saiz 2.5 L</th>
-                  <th>Botol saiz 4 L</th>
-                  <th>Lain-lain Bekas (Kilogram (kg))</th>
-                  <th>Peralatan Kaca (Kilogram (kg))</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${selectedRecords.map((r, idx) => `
-                  <tr>
-                    <td>${idx + 1}</td>
-                    <td>${(r.botol_2_5l_kosong || 0).toFixed(2)}</td>
-                    <td>${(r.botol_4_0l_kosong || 0).toFixed(2)}</td>
-                    <td>${(r.lain_lain_kg || 0).toFixed(2)}</td>
-                    <td>${(r.peralatan_kaca_kg || 0).toFixed(2)}</td>
-                  </tr>
-                `).join('')}
-                <tr style="font-weight: bold; background-color: #fafafa;">
-                  <td>JUMLAH</td>
-                  <td>${totB25.toFixed(2)}</td>
-                  <td>${totB40.toFixed(2)}</td>
-                  <td>${totLain.toFixed(2)}</td>
-                  <td>${totKaca.toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
-          ` : `
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th rowspan="2" style="width: 40px;">BIL.</th>
-                  <th rowspan="2">NAMA KOD BUANGAN & NAMA BAHAN KIMIA</th>
-                  <th rowspan="2" style="width: 100px;">KOD BUANGAN</th>
-                  <th colspan="3">KUANTITI</th>
-                </tr>
-                <tr>
-                  <th style="width: 90px;">Botol saiz 2.5 L</th>
-                  <th style="width: 90px;">Botol saiz 4 L</th>
-                  <th style="width: 90px;">Kilogram (kg)</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${selectedRecords.map((r, idx) => `
-                  <tr>
-                    <td>${idx + 1}</td>
-                    <td style="text-align: left;">${r.nama_buangan || '-'}</td>
-                    <td>${r.kod_sw}</td>
-                    <td>${(r.botol_2_5l_kimia || 0).toFixed(2)}</td>
-                    <td>${(r.botol_4_0l_kimia || 0).toFixed(2)}</td>
-                    <td>${(r.kilogram_kimia || 0).toFixed(2)}</td>
-                  </tr>
-                `).join('')}
-                <tr style="font-weight: bold; background-color: #fafafa;">
-                  <td colspan="3" style="text-align: right; padding-right: 15px;">JUMLAH</td>
-                  <td>${totB25.toFixed(2)}</td>
-                  <td>${totB40.toFixed(2)}</td>
-                  <td>${totKg.toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
-          `}
+${isSw409 ? `
+<table class="data-table">
+<thead>
+<tr>
+<th rowspan="2" style="width: 40px;">BIL.</th>
+<th colspan="4">KUANTITI</th>
+</tr>
+<tr>
+<th>Botol saiz 2.5 L</th>
+<th>Botol saiz 4 L</th>
+<th>Lain-lain Bekas (Kilogram (kg))</th>
+<th>Peralatan Kaca (Kilogram (kg))</th>
+</tr>
+</thead>
+<tbody>
+${selectedRecords.map((r, idx) => `
+<tr>
+<td>${idx + 1}</td>
+<td>${(r.botol_2_5l_kosong || 0).toFixed(2)}</td>
+<td>${(r.botol_4_0l_kosong || 0).toFixed(2)}</td>
+<td>${(r.lain_lain_kg || 0).toFixed(2)}</td>
+<td>${(r.peralatan_kaca_kg || 0).toFixed(2)}</td>
+</tr>
+`).join('')}
+<tr style="font-weight: bold; background-color: #fafafa;">
+<td>JUMLAH</td>
+<td>${totB25.toFixed(2)}</td>
+<td>${totB40.toFixed(2)}</td>
+<td>${totLain.toFixed(2)}</td>
+<td>${totKaca.toFixed(2)}</td>
+</tr>
+</tbody>
+</table>
+` : `
+<table class="data-table">
+<thead>
+<tr>
+<th rowspan="2" style="width: 40px;">BIL.</th>
+<th rowspan="2">NAMA KOD BUANGAN & NAMA BAHAN KIMIA</th>
+<th rowspan="2" style="width: 100px;">KOD BUANGAN</th>
+<th colspan="3">KUANTITI</th>
+</tr>
+<tr>
+<th style="width: 90px;">Botol saiz 2.5 L</th>
+<th style="width: 90px;">Botol saiz 4 L</th>
+<th style="width: 90px;">Kilogram (kg)</th>
+</tr>
+</thead>
+<tbody>
+${selectedRecords.map((r, idx) => `
+<tr>
+<td>${idx + 1}</td>
+<td style="text-align: left;">${r.nama_buangan || '-'}</td>
+<td>${r.kod_sw}</td>
+<td>${(r.botol_2_5l_kimia || 0).toFixed(2)}</td>
+<td>${(r.botol_4_0l_kimia || 0).toFixed(2)}</td>
+<td>${(r.kilogram_kimia || 0).toFixed(2)}</td>
+</tr>
+`).join('')}
+<tr style="font-weight: bold; background-color: #fafafa;">
+<td colspan="3" style="text-align: right; padding-right: 15px;">JUMLAH</td>
+<td>${totB25.toFixed(2)}</td>
+<td>${totB40.toFixed(2)}</td>
+<td>${totKg.toFixed(2)}</td>
+</tr>
+</tbody>
+</table>
+`}
 
-          <table class="verification-box">
-            <tr>
-              <td>
-                <strong style="font-size: 13px;">Disediakan oleh:</strong>
-                <table class="sig-line-table">
-                  <tr><td class="sig-line-label">Tandatangan</td><td>: ${signatureElement}</td></tr>
-                  <tr><td class="sig-line-label">Nama</td><td>: <strong>${profile?.nama || '-'}</strong></td></tr>
-                  <tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${profile?.ukmper || '-'}</strong></td></tr>
-                  <tr><td class="sig-line-label">Jawatan</td><td>: <strong>${profile?.jawatan || '-'}</strong></td></tr>
-                  <tr><td class="sig-line-label">No. Tel.</td><td>: <strong>${profile?.no_tel || '-'}</strong></td></tr>
-                </table>
-              </td>
-              <td>
-                <strong style="font-size: 13px;">Disahkan oleh:</strong>
-                <table class="sig-line-table">
-                  <tr><td class="sig-line-label">Tandatangan</td><td>: ___________________________</td></tr>
-                  <tr><td class="sig-line-label">Nama</td><td>: ___________________________</td></tr>
-                  <tr><td class="sig-line-label">UKM (Per)</td><td>: ___________________________</td></tr>
-                  <tr><td class="sig-line-label">Jawatan</td><td>: ___________________________</td></tr>
-                  <tr><td class="sig-line-label">No. Tel.</td><td>: ___________________________</td></tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-      </html>
-    `;
+<table class="verification-box">
+<tr>
+<td>
+<strong style="font-size: 13px;">Disediakan oleh:</strong>
+<table class="sig-line-table">
+<tr><td class="sig-line-label">Tandatangan</td><td>: ${signatureElement}</td></tr>
+<tr><td class="sig-line-label">Nama</td><td>: <strong>${profile?.nama || '-'}</strong></td></tr>
+<tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${profile?.ukmper || '-'}</strong></td></tr>
+<tr><td class="sig-line-label">Jawatan</td><td>: <strong>${profile?.jawatan || '-'}</strong></td></tr>
+<tr><td class="sig-line-label">No. Tel.</td><td>: <strong>${profile?.no_tel || '-'}</strong></td></tr>
+</table>
+</td>
+<td>
+<strong style="font-size: 13px;">Disahkan oleh:</strong>
+<table class="sig-line-table">
+<tr><td class="sig-line-label">Tandatangan</td><td>: ___________________________</td></tr>
+<tr><td class="sig-line-label">Nama</td><td>: ___________________________</td></tr>
+<tr><td class="sig-line-label">UKM (Per)</td><td>: ___________________________</td></tr>
+<tr><td class="sig-line-label">Jawatan</td><td>: ___________________________</td></tr>
+<tr><td class="sig-line-label">No. Tel.</td><td>: ___________________________</td></tr>
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>
+`;
 
     printWindow.document.write(htmlContent);
     printWindow.document.close();
@@ -623,7 +687,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                     <th style={styles.th}>Nama Bahan</th>
                     <th style={styles.th}>Kuantiti</th>
                     <th style={styles.th}>Tempoh Simpanan</th>
-                    <th style={styles.th}>Pinda / Edit</th>
+                    <th style={{ ...styles.th, textAlign: 'center' }}>Pinda / Tindakan</th>
                     <th style={styles.th}>Status & Muatnaik SDS</th>
                   </tr>
                 </thead>
@@ -632,14 +696,10 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                     const daysElapsed = calculateStorageDays(item.created_at);
                     const isChecked = selectedWasteIds.includes(item.id_sisa);
                     const isSw430 = item.kod_sw === 'SW430';
-
-                    const isApprovedByJkkp = item.status === 'DISAHKAN_JKKP' || 
-                                             item.status === 'DISAHKAN' || 
-                                             item.status === 'SAH' || 
-                                             item.status === 'APPROVED';
+                    const isEditableOrDeletable = canModifyOrDelete(item.status);
 
                     return (
-                      <tr key={item.id} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : '#fff' }}>
+                      <tr key={item.id || item.id_sisa} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : '#fff' }}>
                         <td style={{ ...styles.td, textAlign: 'center' }}>
                           <input 
                             type="checkbox" 
@@ -662,22 +722,35 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
                           )}
                         </td>
 
-                        {/* PINDA / EDIT COLUMN BEFORE STATUS */}
-                        <td style={styles.td}>
-                          {!isApprovedByJkkp ? (
-                            <button 
-                              onClick={() => handleEditWasteItem(item)} 
-                              style={{ ...styles.smallButton, backgroundColor: '#ffc107', color: '#000' }}
-                            >
-                              ✏️ Pinda
-                            </button>
+                        {/* PINDA / HAPUS COLUMN */}
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                          {isEditableOrDeletable ? (
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                              <button 
+                                onClick={() => handleEditWasteItem(item)} 
+                                style={{ ...styles.smallButton, backgroundColor: '#ffc107', color: '#000' }}
+                                title="Pinda Rekod"
+                              >
+                                ✏️ Pinda
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteWaste(item.id_sisa, item.status)} 
+                                style={{ ...styles.smallButton, backgroundColor: '#dc3545', color: '#fff' }}
+                                title="Hapus Rekod"
+                              >
+                                🗑️ Hapus
+                              </button>
+                            </div>
                           ) : (
-                            <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold' }}>
-                              🔒 Disahkan
+                            <span 
+                              style={{ fontSize: '11px', color: '#6c757d', fontWeight: 'bold', backgroundColor: '#e9ecef', padding: '4px 8px', borderRadius: '4px' }}
+                              title="Rekod telah diproses dan tidak boleh dihapus/dipinda. Sila hubungi Pegawai i-SWIMS."
+                            >
+                              🔒 Terkunci
                             </span>
                           )}
                         </td>
-                        
+
                         {/* STATUS & SDS UPLOAD BOX COLUMN */}
                         <td style={styles.td}>
                           <span style={getStatusBadgeStyle(item.status)}>{item.status}</span>

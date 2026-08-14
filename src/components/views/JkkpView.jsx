@@ -49,6 +49,22 @@ export default function JkkpView({
     setFilterPenjana('');
   }
 
+  // HELPER MENDAPATKAN LOKASI PENGUMPULAN TEPAT DARI PENJANA
+  function getExactLokasiPengumpulan(firstItem) {
+    if (firstItem.tapak_pengumpulan && firstItem.tapak_pengumpulan !== '-') {
+      return firstItem.tapak_pengumpulan;
+    }
+    if (firstItem.tapak_pengumpulan_sisa) {
+      return firstItem.tapak_pengumpulan_sisa;
+    }
+    if (firstItem.bangunan && firstItem.bangunan !== '-') {
+      return firstItem.bangunan.toLowerCase().includes('parkir') 
+        ? firstItem.bangunan 
+        : `Parkir ${firstItem.bangunan}`;
+    }
+    return 'Parkir Bangunan Sains Kimia';
+  }
+
   // 1. PRINT BORANG RINGKASAN PELUPUSAN (SISA KIMIA) - BO02
   function handlePrintBorangKimia() {
     const records = filteredRecords.filter((r) => r.kod_sw !== 'SW409');
@@ -61,10 +77,10 @@ export default function JkkpView({
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
     
-    // PEMETAPAN TEPAT DATA PENJANA SISA
-    const programName = firstItem.program_jabatan || firstItem.jabatan || profile?.program_jabatan || 'Unit Sains Kimia';
-    const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
-    const lokasiPengumpulan = firstItem.tapak_pengumpulan || profile?.tapak_pengumpulan || (firstItem.bangunan ? `Parkir ${firstItem.bangunan}` : 'Parkir Bangunan Kimia');
+    // PEMETAPAN DATA PENJANA SISA TEPAT
+    const programName = firstItem.program_jabatan || firstItem.jabatan || 'Unit Sains Kimia';
+    const fakultiName = firstItem.fakulti || 'FST';
+    const lokasiPengumpulan = getExactLokasiPengumpulan(firstItem);
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
     let totB25 = 0, totB40 = 0, totKg = 0;
@@ -192,10 +208,10 @@ export default function JkkpView({
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
 
-    // PEMETAPAN TEPAT DATA PENJANA SISA
-    const programName = firstItem.program_jabatan || firstItem.jabatan || profile?.program_jabatan || 'Unit Sains Kimia';
-    const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
-    const lokasiPengumpulan = firstItem.tapak_pengumpulan || profile?.tapak_pengumpulan || (firstItem.bangunan ? `Parkir ${firstItem.bangunan}` : 'Parkir Bangunan Kimia');
+    // PEMETAPAN DATA PENJANA SISA TEPAT
+    const programName = firstItem.program_jabatan || firstItem.jabatan || 'Unit Sains Kimia';
+    const fakultiName = firstItem.fakulti || 'FST';
+    const lokasiPengumpulan = getExactLokasiPengumpulan(firstItem);
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
     let totB25 = 0, totB40 = 0, totLain = 0, totKaca = 0;

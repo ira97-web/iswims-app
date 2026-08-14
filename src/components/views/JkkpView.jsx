@@ -8,7 +8,7 @@ export default function JkkpView({
   handleVerifyStatus,
   setActiveTab
 }) {
-  // 3 FILTER STATES SAHAJA
+  // 3 FILTER STATES
   const [filterTarikh, setFilterTarikh] = useState('');
   const [filterMakmal, setFilterMakmal] = useState('');
   const [filterPenjana, setFilterPenjana] = useState('');
@@ -35,7 +35,7 @@ export default function JkkpView({
     return rawMatch || formattedMalayMatch;
   };
 
-  // LOGIK PENAPISAN (3 MEDAN SAHAJA)
+  // LOGIK PENAPISAN
   const filteredRecords = allWasteRecords.filter((item) => {
     if (!matchesDate(item.tarikh_pelupusan, filterTarikh)) return false;
     if (!matchesLoose(item.nama_makmal, filterMakmal)) return false;
@@ -60,9 +60,11 @@ export default function JkkpView({
     const firstItem = records[0];
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
-    const programName = firstItem.bangunan || profile?.program_jabatan || 'Bangunan Sains Kimia';
+    
+    // PEMETAPAN TEPAT DATA PENJANA SISA
+    const programName = firstItem.program_jabatan || firstItem.jabatan || profile?.program_jabatan || 'Unit Sains Kimia';
     const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
-    const lokasiPengumpulan = profile?.tapak_pengumpulan || `Parkir ${programName}`;
+    const lokasiPengumpulan = firstItem.tapak_pengumpulan || profile?.tapak_pengumpulan || (firstItem.bangunan ? `Parkir ${firstItem.bangunan}` : 'Parkir Bangunan Kimia');
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
     let totB25 = 0, totB40 = 0, totKg = 0;
@@ -189,9 +191,11 @@ export default function JkkpView({
     const firstItem = records[0];
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
-    const programName = firstItem.bangunan || profile?.program_jabatan || 'Bangunan Sains Kimia';
+
+    // PEMETAPAN TEPAT DATA PENJANA SISA
+    const programName = firstItem.program_jabatan || firstItem.jabatan || profile?.program_jabatan || 'Unit Sains Kimia';
     const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
-    const lokasiPengumpulan = profile?.tapak_pengumpulan || `Parkir ${programName}`;
+    const lokasiPengumpulan = firstItem.tapak_pengumpulan || profile?.tapak_pengumpulan || (firstItem.bangunan ? `Parkir ${firstItem.bangunan}` : 'Parkir Bangunan Kimia');
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
     let totB25 = 0, totB40 = 0, totLain = 0, totKaca = 0;
@@ -333,7 +337,7 @@ export default function JkkpView({
           )}
         </div>
 
-        {/* 3 DROPDOWNS GRID SAHAJA */}
+        {/* 3 DROPDOWNS GRID */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
           <div>
             <label style={filterLabelStyle}>Tarikh Pelupusan</label>

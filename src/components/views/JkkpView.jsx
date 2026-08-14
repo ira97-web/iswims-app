@@ -13,7 +13,7 @@ export default function JkkpView({
   const [filterMakmal, setFilterMakmal] = useState('');
   const [filterPenjana, setFilterPenjana] = useState('');
 
-  // PILIHAN DINAMIK UNTUK 3 DROPDOWN
+  // PILIHAN DINAMIK UNTUK DROPDOWN
   const tarikhOptions = [...new Set(allWasteRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
   const makmalOptions = [...new Set(allWasteRecords.map((r) => r.nama_makmal).filter(Boolean))];
   const penjanaOptions = [...new Set(allWasteRecords.map((r) => r.nama_penjana || r.email || r.user_id).filter(Boolean))];
@@ -49,20 +49,17 @@ export default function JkkpView({
     setFilterPenjana('');
   }
 
-  // HELPER MENDAPATKAN LOKASI PENGUMPULAN TEPAT DARI PENJANA
+  // HELPER LOKASI PENGUMPULAN DARI REKOD SISA PENJANA
   function getExactLokasiPengumpulan(firstItem) {
-    if (firstItem.tapak_pengumpulan && firstItem.tapak_pengumpulan !== '-') {
+    if (firstItem.tapak_pengumpulan && firstItem.tapak_pengumpulan.trim() !== '') {
       return firstItem.tapak_pengumpulan;
     }
-    if (firstItem.tapak_pengumpulan_sisa) {
-      return firstItem.tapak_pengumpulan_sisa;
-    }
-    if (firstItem.bangunan && firstItem.bangunan !== '-') {
+    if (firstItem.bangunan && firstItem.bangunan.trim() !== '') {
       return firstItem.bangunan.toLowerCase().includes('parkir') 
         ? firstItem.bangunan 
         : `Parkir ${firstItem.bangunan}`;
     }
-    return 'Parkir Bangunan Sains Kimia';
+    return profile?.tapak_pengumpulan || 'Parkir Bangunan Sains Kimia';
   }
 
   // 1. PRINT BORANG RINGKASAN PELUPUSAN (SISA KIMIA) - BO02
@@ -77,9 +74,9 @@ export default function JkkpView({
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
     
-    // PEMETAPAN DATA PENJANA SISA TEPAT
+    // PEMETAPAN TEPAT DARI REKOD PENJANA SISA
     const programName = firstItem.program_jabatan || firstItem.jabatan || 'Unit Sains Kimia';
-    const fakultiName = firstItem.fakulti || 'FST';
+    const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
     const lokasiPengumpulan = getExactLokasiPengumpulan(firstItem);
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
@@ -208,9 +205,9 @@ export default function JkkpView({
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
 
-    // PEMETAPAN DATA PENJANA SISA TEPAT
+    // PEMETAPAN TEPAT DARI REKOD PENJANA SISA
     const programName = firstItem.program_jabatan || firstItem.jabatan || 'Unit Sains Kimia';
-    const fakultiName = firstItem.fakulti || 'FST';
+    const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
     const lokasiPengumpulan = getExactLokasiPengumpulan(firstItem);
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 

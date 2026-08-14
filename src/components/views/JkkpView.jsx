@@ -80,6 +80,11 @@ export default function JkkpView({
     const lokasiPengumpulan = getExactLokasiPengumpulan(firstItem);
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
+    // PENJANAAN ELEMEN TANDATANGAN DINAMIK JKKP
+    const signatureElement = profile?.tandatangan_base64 
+      ? `<img src="${profile.tandatangan_base64}" style="height: 45px; max-width: 140px; object-fit: contain; vertical-align: middle;" />`
+      : `________________________________________`;
+
     let totB25 = 0, totB40 = 0, totKg = 0;
     records.forEach((r) => {
       totB25 += (r.botol_2_5l_kimia || 0);
@@ -176,7 +181,7 @@ export default function JkkpView({
           <div class="signature-box">
             <strong>Disediakan oleh:</strong>
             <table class="sig-line-table">
-              <tr><td class="sig-line-label">Tandatangan</td><td>: ________________________________________</td></tr>
+              <tr><td class="sig-line-label">Tandatangan</td><td>: ${signatureElement}</td></tr>
               <tr><td class="sig-line-label">Nama</td><td>: <strong>${profile?.nama || '________________________________________'}</strong></td></tr>
               <tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${profile?.ukmper || '________________________________________'}</strong></td></tr>
               <tr><td class="sig-line-label">Jawatan</td><td>: <strong>${profile?.jawatan || '________________________________________'}</strong></td></tr>
@@ -210,6 +215,11 @@ export default function JkkpView({
     const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
     const lokasiPengumpulan = getExactLokasiPengumpulan(firstItem);
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
+
+    // PENJANAAN ELEMEN TANDATANGAN DINAMIK JKKP
+    const signatureElement = profile?.tandatangan_base64 
+      ? `<img src="${profile.tandatangan_base64}" style="height: 45px; max-width: 140px; object-fit: contain; vertical-align: middle;" />`
+      : `________________________________________`;
 
     let totB25 = 0, totB40 = 0, totLain = 0, totKaca = 0;
     records.forEach((r) => {
@@ -308,7 +318,7 @@ export default function JkkpView({
           <div class="signature-box">
             <strong>Disediakan oleh:</strong>
             <table class="sig-line-table">
-              <tr><td class="sig-line-label">Tandatangan</td><td>: ________________________________________</td></tr>
+              <tr><td class="sig-line-label">Tandatangan</td><td>: ${signatureElement}</td></tr>
               <tr><td class="sig-line-label">Nama</td><td>: <strong>${profile?.nama || '________________________________________'}</strong></td></tr>
               <tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${profile?.ukmper || '________________________________________'}</strong></td></tr>
               <tr><td class="sig-line-label">Jawatan</td><td>: <strong>${profile?.jawatan || '________________________________________'}</strong></td></tr>

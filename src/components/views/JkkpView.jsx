@@ -34,17 +34,39 @@ export default function JkkpView({
   const tarikhOptions = [...new Set(allWasteRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
   const fakultiOptions = [...new Set(allWasteRecords.map((r) => r.fakulti).filter(Boolean))];
   const jabatanOptions = [...new Set(allWasteRecords.map((r) => r.program_jabatan || r.jabatan).filter(Boolean))];
+  
+  // Combine preset list with actual dynamic building data from DB records
+  const dbBangunanValues = allWasteRecords.map((r) => r.bangunan).filter(Boolean);
+  const bangunanOptions = [...new Set([...bangunanList, ...dbBangunanValues])];
+  
   const makmalOptions = [...new Set(allWasteRecords.map((r) => r.nama_makmal).filter(Boolean))];
   const penjanaOptions = [...new Set(allWasteRecords.map((r) => r.nama_penjana || r.email || r.user_id).filter(Boolean))];
 
+  // HELPER LOGIC FOR FLEXIBLE & LOOSE FILTER MATCHING
+  const matchesLoose = (itemValue, filterValue) => {
+    if (!filterValue || filterValue.trim() === '') return true;
+    if (!itemValue) return false;
+    return itemValue.toString().toLowerCase().trim() === filterValue.toString().toLowerCase().trim();
+  };
+
+  const matchesDate = (itemDate, filterDate) => {
+    if (!filterDate || filterDate.trim() === '') return true;
+    if (!itemDate) return false;
+
+    const rawMatch = itemDate.toString().toLowerCase().trim() === filterDate.toString().toLowerCase().trim();
+    const formattedMalayMatch = formatMalayDate(itemDate).toLowerCase().trim() === filterDate.toLowerCase().trim();
+
+    return rawMatch || formattedMalayMatch;
+  };
+
   // FILTERED RECORDS LOGIC
   const filteredRecords = allWasteRecords.filter((item) => {
-    if (filterTarikh && item.tarikh_pelupusan !== filterTarikh) return false;
-    if (filterFakulti && item.fakulti !== filterFakulti) return false;
-    if (filterJabatan && (item.program_jabatan || item.jabatan) !== filterJabatan) return false;
-    if (filterBangunan && item.bangunan !== filterBangunan) return false;
-    if (filterMakmal && item.nama_makmal !== filterMakmal) return false;
-    if (filterPenjana && (item.nama_penjana || item.email || item.user_id) !== filterPenjana) return false;
+    if (!matchesDate(item.tarikh_pelupusan, filterTarikh)) return false;
+    if (!matchesLoose(item.fakulti, filterFakulti)) return false;
+    if (!matchesLoose(item.program_jabatan || item.jabatan, filterJabatan)) return false;
+    if (!matchesLoose(item.bangunan, filterBangunan)) return false;
+    if (!matchesLoose(item.nama_makmal, filterMakmal)) return false;
+    if (!matchesLoose(item.nama_penjana || item.email || item.user_id, filterPenjana)) return false;
     return true;
   });
 
@@ -377,7 +399,7 @@ export default function JkkpView({
             <label style={filterLabelStyle}>Bangunan</label>
             <select value={filterBangunan} onChange={(e) => setFilterBangunan(e.target.value)} style={filterSelectStyle}>
               <option value="">Semua Bangunan</option>
-              {bangunanList.map((b) => (
+              {bangunanOptions.map((b) => (
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>

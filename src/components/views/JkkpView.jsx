@@ -2,6 +2,20 @@ import React, { useState } from 'react';
 import { calculateStorageDays, formatMalayDate, getQuantityText, getStatusBadgeStyle } from '../../utils/helpers';
 import { styles } from '../../styles/styles';
 
+const bangunanList = [
+  'Bangunan Sains Kimia',
+  'Bangunan Fizik Gunaan',
+  'Bangunan Dewan Anuar Mahmud',
+  'Bangunan Makmal Tambahan',
+  'Bangunan Sains Geologi',
+  'Bangunan Sains Nuklear',
+  'Bangunan Unit Mikroskopi Elektron',
+  'Kompleks Rumah Tumbuhan',
+  'Kompleks Rumah Haiwan',
+  'Bangunan Inbiosis',
+  'Bangunan Seri'
+];
+
 export default function JkkpView({
   allWasteRecords = [],
   profile,
@@ -20,7 +34,6 @@ export default function JkkpView({
   const tarikhOptions = [...new Set(allWasteRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
   const fakultiOptions = [...new Set(allWasteRecords.map((r) => r.fakulti).filter(Boolean))];
   const jabatanOptions = [...new Set(allWasteRecords.map((r) => r.program_jabatan || r.jabatan).filter(Boolean))];
-  const bangunanOptions = [...new Set(allWasteRecords.map((r) => r.bangunan).filter(Boolean))];
   const makmalOptions = [...new Set(allWasteRecords.map((r) => r.nama_makmal).filter(Boolean))];
   const penjanaOptions = [...new Set(allWasteRecords.map((r) => r.nama_penjana || r.email || r.user_id).filter(Boolean))];
 
@@ -90,7 +103,7 @@ export default function JkkpView({
             table.data-table th { background-color: #f2f2f2; font-weight: bold; }
             .signature-box { margin-top: 25px; font-size: 11px; line-height: 1.8; }
             .sig-line-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-            .sig-line-table td { border: none !important; padding: 2px 0 !important; text-align: left !alignment; }
+            .sig-line-table td { border: none !important; padding: 2px 0 !important; text-align: left; }
             .sig-line-label { font-weight: bold; width: 110px; }
           </style>
         </head>
@@ -364,7 +377,7 @@ export default function JkkpView({
             <label style={filterLabelStyle}>Bangunan</label>
             <select value={filterBangunan} onChange={(e) => setFilterBangunan(e.target.value)} style={filterSelectStyle}>
               <option value="">Semua Bangunan</option>
-              {bangunanOptions.map((b) => (
+              {bangunanList.map((b) => (
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
@@ -454,7 +467,7 @@ export default function JkkpView({
                       <td style={styles.td}>{formatMalayDate(item.tarikh_pelupusan || item.created_at)}</td>
                       <td style={styles.td}>
                         <div><strong>{item.fakulti || 'FST'}</strong></div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>{item.bangunan || 'Bangunan Utama'}</div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>{item.bangunan || '-'}</div>
                       </td>
                       <td style={styles.td}>{item.nama_makmal || '-'}</td>
                       <td style={styles.td}><strong>{item.kod_sw}</strong></td>

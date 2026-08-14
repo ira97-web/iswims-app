@@ -2,47 +2,23 @@ import React, { useState } from 'react';
 import { calculateStorageDays, formatMalayDate, getQuantityText, getStatusBadgeStyle } from '../../utils/helpers';
 import { styles } from '../../styles/styles';
 
-const bangunanList = [
-  'Bangunan Sains Kimia',
-  'Bangunan Fizik Gunaan',
-  'Bangunan Dewan Anuar Mahmud',
-  'Bangunan Makmal Tambahan',
-  'Bangunan Sains Geologi',
-  'Bangunan Sains Nuklear',
-  'Bangunan Unit Mikroskopi Elektron',
-  'Kompleks Rumah Tumbuhan',
-  'Kompleks Rumah Haiwan',
-  'Bangunan Inbiosis',
-  'Bangunan Seri'
-];
-
 export default function JkkpView({
   allWasteRecords = [],
   profile,
   handleVerifyStatus,
   setActiveTab
 }) {
-  // FILTER STATES
+  // 3 FILTER STATES SAHAJA
   const [filterTarikh, setFilterTarikh] = useState('');
-  const [filterFakulti, setFilterFakulti] = useState('');
-  const [filterJabatan, setFilterJabatan] = useState('');
-  const [filterBangunan, setFilterBangunan] = useState('');
   const [filterMakmal, setFilterMakmal] = useState('');
   const [filterPenjana, setFilterPenjana] = useState('');
 
-  // EXTRACT DYNAMIC OPTIONS FOR FILTER DROPDOWNS
+  // PILIHAN DINAMIK UNTUK 3 DROPDOWN
   const tarikhOptions = [...new Set(allWasteRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
-  const fakultiOptions = [...new Set(allWasteRecords.map((r) => r.fakulti).filter(Boolean))];
-  const jabatanOptions = [...new Set(allWasteRecords.map((r) => r.program_jabatan || r.jabatan).filter(Boolean))];
-  
-  // Combine preset list with actual dynamic building data from DB records
-  const dbBangunanValues = allWasteRecords.map((r) => r.bangunan).filter(Boolean);
-  const bangunanOptions = [...new Set([...bangunanList, ...dbBangunanValues])];
-  
   const makmalOptions = [...new Set(allWasteRecords.map((r) => r.nama_makmal).filter(Boolean))];
   const penjanaOptions = [...new Set(allWasteRecords.map((r) => r.nama_penjana || r.email || r.user_id).filter(Boolean))];
 
-  // HELPER LOGIC FOR FLEXIBLE & LOOSE FILTER MATCHING
+  // LOGIK PADANAN LONGGAR (LOOSE MATCHING)
   const matchesLoose = (itemValue, filterValue) => {
     if (!filterValue || filterValue.trim() === '') return true;
     if (!itemValue) return false;
@@ -59,12 +35,9 @@ export default function JkkpView({
     return rawMatch || formattedMalayMatch;
   };
 
-  // FILTERED RECORDS LOGIC
+  // LOGIK PENAPISAN (3 MEDAN SAHAJA)
   const filteredRecords = allWasteRecords.filter((item) => {
     if (!matchesDate(item.tarikh_pelupusan, filterTarikh)) return false;
-    if (!matchesLoose(item.fakulti, filterFakulti)) return false;
-    if (!matchesLoose(item.program_jabatan || item.jabatan, filterJabatan)) return false;
-    if (!matchesLoose(item.bangunan, filterBangunan)) return false;
     if (!matchesLoose(item.nama_makmal, filterMakmal)) return false;
     if (!matchesLoose(item.nama_penjana || item.email || item.user_id, filterPenjana)) return false;
     return true;
@@ -72,9 +45,6 @@ export default function JkkpView({
 
   function resetFilters() {
     setFilterTarikh('');
-    setFilterFakulti('');
-    setFilterJabatan('');
-    setFilterBangunan('');
     setFilterMakmal('');
     setFilterPenjana('');
   }
@@ -90,7 +60,7 @@ export default function JkkpView({
     const firstItem = records[0];
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
-    const programName = filterBangunan || firstItem.bangunan || profile?.program_jabatan || 'Bangunan Sains Kimia';
+    const programName = firstItem.bangunan || profile?.program_jabatan || 'Bangunan Sains Kimia';
     const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
     const lokasiPengumpulan = profile?.tapak_pengumpulan || `Parkir ${programName}`;
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
@@ -219,7 +189,7 @@ export default function JkkpView({
     const firstItem = records[0];
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
-    const programName = filterBangunan || firstItem.bangunan || profile?.program_jabatan || 'Bangunan Sains Kimia';
+    const programName = firstItem.bangunan || profile?.program_jabatan || 'Bangunan Sains Kimia';
     const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
     const lokasiPengumpulan = profile?.tapak_pengumpulan || `Parkir ${programName}`;
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
@@ -353,7 +323,7 @@ export default function JkkpView({
           <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>🔍</span> Penjejakan Status BT (JKKP Bangunan)
           </h3>
-          {(filterTarikh || filterFakulti || filterJabatan || filterBangunan || filterMakmal || filterPenjana) && (
+          {(filterTarikh || filterMakmal || filterPenjana) && (
             <button
               onClick={resetFilters}
               style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
@@ -363,44 +333,14 @@ export default function JkkpView({
           )}
         </div>
 
-        {/* 6 DROPDOWNS GRID */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
+        {/* 3 DROPDOWNS GRID SAHAJA */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
           <div>
             <label style={filterLabelStyle}>Tarikh Pelupusan</label>
             <select value={filterTarikh} onChange={(e) => setFilterTarikh(e.target.value)} style={filterSelectStyle}>
               <option value="">Semua Tarikh</option>
               {tarikhOptions.map((t) => (
                 <option key={t} value={t}>{formatMalayDate(t)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={filterLabelStyle}>PTj / Fakulti</label>
-            <select value={filterFakulti} onChange={(e) => setFilterFakulti(e.target.value)} style={filterSelectStyle}>
-              <option value="">Semua PTj / Fakulti</option>
-              {fakultiOptions.map((f) => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={filterLabelStyle}>Jabatan / Program</label>
-            <select value={filterJabatan} onChange={(e) => setFilterJabatan(e.target.value)} style={filterSelectStyle}>
-              <option value="">Semua Jabatan</option>
-              {jabatanOptions.map((j) => (
-                <option key={j} value={j}>{j}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={filterLabelStyle}>Bangunan</label>
-            <select value={filterBangunan} onChange={(e) => setFilterBangunan(e.target.value)} style={filterSelectStyle}>
-              <option value="">Semua Bangunan</option>
-              {bangunanOptions.map((b) => (
-                <option key={b} value={b}>{b}</option>
               ))}
             </select>
           </div>

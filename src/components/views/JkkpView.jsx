@@ -4,8 +4,8 @@ import { styles } from '../../styles/styles';
 
 export default function JkkpView({
   allWasteRecords = [],
+  profile,
   handleVerifyStatus,
-  handlePrintSummaryPdf,
   setActiveTab
 }) {
   // FILTER STATES
@@ -44,6 +44,265 @@ export default function JkkpView({
     setFilterPenjana('');
   }
 
+  // 1. PRINT BORANG RINGKASAN PELUPUSAN (SISA KIMIA) - BO02
+  function handlePrintBorangKimia() {
+    const records = filteredRecords.filter((r) => r.kod_sw !== 'SW409');
+    if (records.length === 0) {
+      alert('Tiada rekod sisa kimia (selain SW409) ditemui dalam hasil tapisan semasa.');
+      return;
+    }
+
+    const firstItem = records[0];
+    const todayStr = new Date().toLocaleDateString('en-GB');
+    const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
+    const programName = filterBangunan || firstItem.bangunan || profile?.program_jabatan || 'Bangunan Sains Kimia';
+    const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
+    const lokasiPengumpulan = profile?.tapak_pengumpulan || `Parkir ${programName}`;
+    const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
+
+    let totB25 = 0, totB40 = 0, totKg = 0;
+    records.forEach((r) => {
+      totB25 += (r.botol_2_5l_kimia || 0);
+      totB40 += (r.botol_4_0l_kimia || 0);
+      totKg += (r.kilogram_kimia || 0);
+    });
+
+    const printWindow = window.open('', '_blank');
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>BORANG RINGKASAN PELUPUSAN BUANGAN TERJADUAL (SISA KIMIA)</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 15px; color: #000; font-size: 11px; line-height: 1.4; }
+            .rosh-header-box { width: 100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 10px; }
+            .rosh-header-box td { border: 2px solid #000; padding: 6px 10px; vertical-align: middle; }
+            .logo-cell { width: 22%; text-align: center; background: #fff; }
+            .doc-code-cell { width: 48%; font-weight: bold; font-size: 12px; }
+            .effective-date-cell { width: 30%; font-weight: bold; font-size: 11px; }
+            .doc-title-cell { font-weight: bold; font-size: 12px; text-transform: uppercase; }
+            .attention-text { font-weight: bold; font-size: 11px; margin-bottom: 12px; color: #000; text-transform: uppercase; }
+            .meta-table { width: 100%; margin-bottom: 12px; font-size: 11px; line-height: 1.6; }
+            .meta-table td { padding: 2px 0; vertical-align: top; }
+            .meta-label { font-weight: bold; width: 250px; }
+            table.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            table.data-table th, table.data-table td { border: 1px solid #000; padding: 5px 6px; text-align: center; font-size: 10px; }
+            table.data-table th { background-color: #f2f2f2; font-weight: bold; }
+            .signature-box { margin-top: 25px; font-size: 11px; line-height: 1.8; }
+            .sig-line-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+            .sig-line-table td { border: none !important; padding: 2px 0 !important; text-align: left !alignment; }
+            .sig-line-label { font-weight: bold; width: 110px; }
+          </style>
+        </head>
+        <body>
+          <table class="rosh-header-box">
+            <tr>
+              <td rowspan="2" class="logo-cell">
+                <img src="/ukm-logo.png" id="ukmLogoImg" alt="UKM Logo" style="height: 48px; width: auto; object-fit: contain;" />
+              </td>
+              <td class="doc-code-cell">UKM-SPKPPP-PT(P)07-ROSH-AK04-BO02</td>
+              <td class="effective-date-cell">Tarikh Kuat kuasa: <span style="color: #0056b3;">01/01/2025</span></td>
+            </tr>
+            <tr>
+              <td colspan="2" class="doc-title-cell">BORANG RINGKASAN PELUPUSAN BUANGAN TERJADUAL (SISA KIMIA)</td>
+            </tr>
+          </table>
+
+          <div class="attention-text">PERHATIAN: SALINAN INI PERLU DIHANTAR KE PUSAT PENGURUSAN RISIKO, KESELAMATAN & KESIHATAN PEKERJAAN</div>
+
+          <table class="meta-table">
+            <tr><td class="meta-label">Inventori Buangan Terjadual Sehingga Tarikh</td><td>: ${todayStr}</td></tr>
+            <tr><td class="meta-label">Tarikh Pelupusan</td><td>: ${dateFormatted}</td></tr>
+            <tr><td class="meta-label">Program/ Jabatan</td><td>: ${programName}</td></tr>
+            <tr><td class="meta-label">Fakulti/ Institut/ Pusat</td><td>: ${fakultiName}</td></tr>
+            <tr><td class="meta-label">Lokasi Pengumpulan</td><td>: ${lokasiPengumpulan}</td></tr>
+            <tr><td class="meta-label">Kategori Makmal (Sila tandakan)</td><td>: ${katMakmal}</td></tr>
+          </table>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th rowspan="2" style="width: 35px;">BIL.</th>
+                <th rowspan="2">NAMA KOD BUANGAN & NAMA BAHAN KIMIA</th>
+                <th rowspan="2" style="width: 90px;">KOD BUANGAN</th>
+                <th colspan="3">KUANTITI</th>
+              </tr>
+              <tr>
+                <th style="width: 80px;">Botol saiz 2.5 L</th>
+                <th style="width: 80px;">Botol saiz 4 L</th>
+                <th style="width: 80px;">Kilogram (kg)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${records.map((r, idx) => `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td style="text-align: left;">${r.nama_buangan || '-'}</td>
+                  <td>${r.kod_sw}</td>
+                  <td>${(r.botol_2_5l_kimia || 0).toFixed(2)}</td>
+                  <td>${(r.botol_4_0l_kimia || 0).toFixed(2)}</td>
+                  <td>${(r.kilogram_kimia || 0).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+              <tr style="font-weight: bold; background-color: #fafafa;">
+                <td colspan="3" style="text-align: right; padding-right: 15px;">JUMLAH</td>
+                <td>${totB25.toFixed(2)}</td>
+                <td>${totB40.toFixed(2)}</td>
+                <td>${totKg.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="signature-box">
+            <strong>Disediakan oleh:</strong>
+            <table class="sig-line-table">
+              <tr><td class="sig-line-label">Tandatangan</td><td>: ________________________________________</td></tr>
+              <tr><td class="sig-line-label">Nama</td><td>: <strong>${profile?.nama || '________________________________________'}</strong></td></tr>
+              <tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${profile?.ukmper || '________________________________________'}</strong></td></tr>
+              <tr><td class="sig-line-label">Jawatan</td><td>: <strong>${profile?.jawatan || '________________________________________'}</strong></td></tr>
+              <tr><td class="sig-line-label">No. Tel.</td><td>: <strong>${profile?.no_tel || '________________________________________'}</strong></td></tr>
+            </table>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  }
+
+  // 2. PRINT BORANG RINGKASAN PELUPUSAN (PERALATAN KACA & BOTOL KOSONG SW409) - BO04
+  function handlePrintBorangKaca() {
+    const records = filteredRecords.filter((r) => r.kod_sw === 'SW409');
+    if (records.length === 0) {
+      alert('Tiada rekod sisa peralatan kaca / botol kosong (SW409) ditemui dalam hasil tapisan semasa.');
+      return;
+    }
+
+    const firstItem = records[0];
+    const todayStr = new Date().toLocaleDateString('en-GB');
+    const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
+    const programName = filterBangunan || firstItem.bangunan || profile?.program_jabatan || 'Bangunan Sains Kimia';
+    const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
+    const lokasiPengumpulan = profile?.tapak_pengumpulan || `Parkir ${programName}`;
+    const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
+
+    let totB25 = 0, totB40 = 0, totLain = 0, totKaca = 0;
+    records.forEach((r) => {
+      totB25 += (r.botol_2_5l_kosong || 0);
+      totB40 += (r.botol_4_0l_kosong || 0);
+      totLain += (r.lain_lain_kg || 0);
+      totKaca += (r.peralatan_kaca_kg || 0);
+    });
+
+    const printWindow = window.open('', '_blank');
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>BORANG RINGKASAN PELUPUSAN BOTOL KOSONG & PERALATAN KACA</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 15px; color: #000; font-size: 11px; line-height: 1.4; }
+            .rosh-header-box { width: 100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 10px; }
+            .rosh-header-box td { border: 2px solid #000; padding: 6px 10px; vertical-align: middle; }
+            .logo-cell { width: 22%; text-align: center; background: #fff; }
+            .doc-code-cell { width: 48%; font-weight: bold; font-size: 12px; }
+            .effective-date-cell { width: 30%; font-weight: bold; font-size: 11px; }
+            .doc-title-cell { font-weight: bold; font-size: 12px; text-transform: uppercase; }
+            .attention-text { font-weight: bold; font-size: 11px; margin-bottom: 12px; color: #000; text-transform: uppercase; }
+            .meta-table { width: 100%; margin-bottom: 12px; font-size: 11px; line-height: 1.6; }
+            .meta-table td { padding: 2px 0; vertical-align: top; }
+            .meta-label { font-weight: bold; width: 250px; }
+            table.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            table.data-table th, table.data-table td { border: 1px solid #000; padding: 5px 6px; text-align: center; font-size: 10px; }
+            table.data-table th { background-color: #f2f2f2; font-weight: bold; }
+            .signature-box { margin-top: 25px; font-size: 11px; line-height: 1.8; }
+            .sig-line-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+            .sig-line-table td { border: none !important; padding: 2px 0 !important; text-align: left; }
+            .sig-line-label { font-weight: bold; width: 110px; }
+          </style>
+        </head>
+        <body>
+          <table class="rosh-header-box">
+            <tr>
+              <td rowspan="2" class="logo-cell">
+                <img src="/ukm-logo.png" id="ukmLogoImg" alt="UKM Logo" style="height: 48px; width: auto; object-fit: contain;" />
+              </td>
+              <td class="doc-code-cell">UKM-SPKPPP-PT(P)07-ROSH-AK04-BO04</td>
+              <td class="effective-date-cell">Tarikh Kuat kuasa: <span style="color: #0056b3;">01/01/2025</span></td>
+            </tr>
+            <tr>
+              <td colspan="2" class="doc-title-cell">BORANG RINGKASAN PELUPUSAN BOTOL KOSONG & PERALATAN KACA</td>
+            </tr>
+          </table>
+
+          <div class="attention-text">PERHATIAN: SALINAN INI PERLU DIHANTAR KE PUSAT PENGURUSAN RISIKO, KESELAMATAN & KESIHATAN PEKERJAAN</div>
+
+          <table class="meta-table">
+            <tr><td class="meta-label">Kod Buangan Terjadual</td><td>: SW409</td></tr>
+            <tr><td class="meta-label">Inventori Buangan Terjadual Sehingga Tarikh</td><td>: ${todayStr}</td></tr>
+            <tr><td class="meta-label">Tarikh Pelupusan</td><td>: ${dateFormatted}</td></tr>
+            <tr><td class="meta-label">Program/ Jabatan</td><td>: ${programName}</td></tr>
+            <tr><td class="meta-label">Fakulti/ Institut/ Pusat</td><td>: ${fakultiName}</td></tr>
+            <tr><td class="meta-label">Lokasi Pengumpulan</td><td>: ${lokasiPengumpulan}</td></tr>
+            <tr><td class="meta-label">Kategori Makmal (Sila tandakan)</td><td>: ${katMakmal}</td></tr>
+          </table>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th rowspan="2" style="width: 35px;">BIL.</th>
+                <th colspan="4">KUANTITI</th>
+              </tr>
+              <tr>
+                <th>Botol saiz 2.5 L</th>
+                <th>Botol saiz 4 L</th>
+                <th>Lain-lain Bekas (Kilogram (kg))</th>
+                <th>Peralatan Kaca (Kilogram (kg))</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${records.map((r, idx) => `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td>${(r.botol_2_5l_kosong || 0).toFixed(2)}</td>
+                  <td>${(r.botol_4_0l_kosong || 0).toFixed(2)}</td>
+                  <td>${(r.lain_lain_kg || 0).toFixed(2)}</td>
+                  <td>${(r.peralatan_kaca_kg || 0).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+              <tr style="font-weight: bold; background-color: #fafafa;">
+                <td>JUMLAH</td>
+                <td>${totB25.toFixed(2)}</td>
+                <td>${totB40.toFixed(2)}</td>
+                <td>${totLain.toFixed(2)}</td>
+                <td>${totKaca.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="signature-box">
+            <strong>Disediakan oleh:</strong>
+            <table class="sig-line-table">
+              <tr><td class="sig-line-label">Tandatangan</td><td>: ________________________________________</td></tr>
+              <tr><td class="sig-line-label">Nama</td><td>: <strong>${profile?.nama || '________________________________________'}</strong></td></tr>
+              <tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${profile?.ukmper || '________________________________________'}</strong></td></tr>
+              <tr><td class="sig-line-label">Jawatan</td><td>: <strong>${profile?.jawatan || '________________________________________'}</strong></td></tr>
+              <tr><td class="sig-line-label">No. Tel.</td><td>: <strong>${profile?.no_tel || '________________________________________'}</strong></td></tr>
+            </table>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  }
+
   return (
     <div>
       <div style={styles.pageTitleBar}>
@@ -71,7 +330,6 @@ export default function JkkpView({
 
         {/* 6 DROPDOWNS GRID */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
-          {/* 1. Tarikh Pelupusan */}
           <div>
             <label style={filterLabelStyle}>Tarikh Pelupusan</label>
             <select value={filterTarikh} onChange={(e) => setFilterTarikh(e.target.value)} style={filterSelectStyle}>
@@ -82,7 +340,6 @@ export default function JkkpView({
             </select>
           </div>
 
-          {/* 2. PTj / Fakulti */}
           <div>
             <label style={filterLabelStyle}>PTj / Fakulti</label>
             <select value={filterFakulti} onChange={(e) => setFilterFakulti(e.target.value)} style={filterSelectStyle}>
@@ -93,7 +350,6 @@ export default function JkkpView({
             </select>
           </div>
 
-          {/* 3. Jabatan / Program */}
           <div>
             <label style={filterLabelStyle}>Jabatan / Program</label>
             <select value={filterJabatan} onChange={(e) => setFilterJabatan(e.target.value)} style={filterSelectStyle}>
@@ -104,7 +360,6 @@ export default function JkkpView({
             </select>
           </div>
 
-          {/* 4. Bangunan */}
           <div>
             <label style={filterLabelStyle}>Bangunan</label>
             <select value={filterBangunan} onChange={(e) => setFilterBangunan(e.target.value)} style={filterSelectStyle}>
@@ -115,7 +370,6 @@ export default function JkkpView({
             </select>
           </div>
 
-          {/* 5. Nama Makmal */}
           <div>
             <label style={filterLabelStyle}>Nama Makmal</label>
             <select value={filterMakmal} onChange={(e) => setFilterMakmal(e.target.value)} style={filterSelectStyle}>
@@ -126,7 +380,6 @@ export default function JkkpView({
             </select>
           </div>
 
-          {/* 6. Nama Penjana Sisa */}
           <div>
             <label style={filterLabelStyle}>Nama Penjana Sisa</label>
             <select value={filterPenjana} onChange={(e) => setFilterPenjana(e.target.value)} style={filterSelectStyle}>
@@ -141,7 +394,7 @@ export default function JkkpView({
 
       {/* MONITORING TABLE CARD */}
       <div style={styles.card}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <h3 style={{ margin: 0, color: '#0056b3' }}>Senarai Semakan Permohonan Sisa Bangunan</h3>
             <span style={{ fontSize: '12px', color: '#64748b' }}>
@@ -150,12 +403,21 @@ export default function JkkpView({
           </div>
 
           {filteredRecords.length > 0 && (
-            <button
-              onClick={() => handlePrintSummaryPdf('BORANG RINGKASAN SISA JKKP BANGUNAN', filteredRecords)}
-              style={{ ...styles.button, backgroundColor: '#0284c7', width: 'auto', padding: '8px 16px', fontSize: '13px' }}
-            >
-              📄 Cetak Borang Ringkasan (Hasil Tapisan)
-            </button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={handlePrintBorangKimia}
+                style={{ ...styles.button, backgroundColor: '#0284c7', width: 'auto', padding: '8px 14px', fontSize: '12px' }}
+              >
+                📄 Borang Ringkasan Sisa Kimia (BO02)
+              </button>
+
+              <button
+                onClick={handlePrintBorangKaca}
+                style={{ ...styles.button, backgroundColor: '#28a745', width: 'auto', padding: '8px 14px', fontSize: '12px' }}
+              >
+                🧪 Borang Ringkasan Kaca & Botol Kosong (BO04)
+              </button>
+            </div>
           )}
         </div>
 

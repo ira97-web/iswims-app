@@ -82,7 +82,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
 
   function handleFilterJenisBorangChange(val) {
     setFilterJenisBorang(val);
-    setSelectedWasteIds([]); // Reset pilihan bila jenis borang ditukar
+    setSelectedWasteIds([]);
   }
 
   function toggleSelectWaste(id) {
@@ -365,7 +365,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     setLoading(false);
   }
 
-  // FUNGSI CETAK BORANG PDF (BESERTA SEMAKAN CAMPURAN SISA KIMIA VS KACA/SW409)
+  // FUNGSI CETAK BORANG PDF
   function handlePrintSelectedPdf() {
     const selectedRecords = myWasteRecords.filter((r) => selectedWasteIds.includes(r.id_sisa));
     if (selectedRecords.length === 0) {
@@ -426,6 +426,11 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     const jkkpSigElement = firstItem.jkkp_tandatangan 
       ? `<img src="${firstItem.jkkp_tandatangan}" style="height: 45px; max-width: 140px; object-fit: contain; vertical-align: middle;" />`
       : `___________________________`;
+
+    const jkkpNama = firstItem.jkkp_nama || '___________________________';
+    const jkkpUkmper = firstItem.jkkp_ukmper || '___________________________';
+    const jkkpJawatan = firstItem.jkkp_jawatan || '___________________________';
+    const jkkpNoTel = firstItem.jkkp_no_tel || '___________________________';
 
     const htmlContent = `
 <html>
@@ -576,10 +581,10 @@ ${selectedRecords.map((r, idx) => `
 <strong style="font-size: 13px;">Disahkan oleh (JKKP Bangunan):</strong>
 <table class="sig-line-table">
 <tr><td class="sig-line-label">Tandatangan</td><td>: ${jkkpSigElement}</td></tr>
-<tr><td class="sig-line-label">Nama</td><td>: <strong>${firstItem.jkkp_nama || '-'}</strong></td></tr>
-<tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${firstItem.jkkp_ukmper || '-'}</strong></td></tr>
-<tr><td class="sig-line-label">Jawatan</td><td>: <strong>${firstItem.jkkp_jawatan || '-'}</strong></td></tr>
-<tr><td class="sig-line-label">No. Tel.</td><td>: <strong>${firstItem.jkkp_no_tel || '-'}</strong></td></tr>
+<tr><td class="sig-line-label">Nama</td><td>: <strong>${jkkpNama}</strong></td></tr>
+<tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${jkkpUkmper}</strong></td></tr>
+<tr><td class="sig-line-label">Jawatan</td><td>: <strong>${jkkpJawatan}</strong></td></tr>
+<tr><td class="sig-line-label">No. Tel.</td><td>: <strong>${jkkpNoTel}</strong></td></tr>
 </table>
 </td>
 </tr>

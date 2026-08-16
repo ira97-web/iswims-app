@@ -94,7 +94,7 @@ export default function App() {
     }
   }
 
-  // ENRICHED FETCH FUNCTION: DENGAN AUTO-PEMBERSIHAN "BANGUNAN UTAMA"
+  // ENRICHED FETCH FUNCTION: CUKUP TEPAT & FLAKSIBEL UNTUK SERAP PROFIL JKKP
   async function fetchAllWasteRecords() {
     const { data: records, error: wasteError } = await supabase
       .from('rekod_sisa')
@@ -103,18 +103,18 @@ export default function App() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, nama, email, ukmper, jawatan, no_tel, program_jabatan, fakulti, bangunan, tapak_pengumpulan, role, peranan, tandatangan_base64');
+      .select('*');
 
     if (records) {
       const profileMap = {};
-      const jkkpMap = {};
+      const jkkpProfiles = [];
 
       if (profiles) {
         profiles.forEach((p) => {
           profileMap[p.id] = p;
           const userRole = (p.role || p.peranan || '').toString().toUpperCase();
-          if (userRole.includes('JKKP') && p.bangunan) {
-            jkkpMap[p.bangunan.trim().toLowerCase()] = p;
+          if (userRole.includes('JKKP')) {
+            jkkpProfiles.push(p);
           }
         });
       }
@@ -122,7 +122,6 @@ export default function App() {
       const enrichedRecords = records.map((r) => {
         const userProfile = profileMap[r.user_id] || {};
 
-        // PENAPIS AUTOMATIK: TUKAR "BANGUNAN UTAMA" KEPADA "BANGUNAN SAINS KIMIA"
         let cleanBangunan = userProfile.bangunan || r.bangunan || 'Bangunan Sains Kimia';
         if (!cleanBangunan || cleanBangunan.toLowerCase().includes('utama')) {
           cleanBangunan = 'Bangunan Sains Kimia';
@@ -133,8 +132,13 @@ export default function App() {
           cleanTapak = 'Parkir Bangunan Sains Kimia';
         }
 
-        const bngKey = cleanBangunan.trim().toLowerCase();
-        const jkkpProfile = jkkpMap[bngKey] || {};
+        // CARI PROFIL JKKP DENGAN PADANAN BANGUNAN
+        const rBng = cleanBangunan.trim().toLowerCase();
+        const matchedJkkp = jkkpProfiles.find((j) => {
+          if (!j.bangunan) return false;
+          const jBng = j.bangunan.trim().toLowerCase();
+          return jBng === rBng || jBng.includes(rBng) || rBng.includes(jBng);
+        }) || jkkpProfiles[0] || {}; // Fallback ke JKKP sedia ada jika wujud
 
         return {
           ...r,
@@ -142,11 +146,12 @@ export default function App() {
           program_jabatan: userProfile.program_jabatan || r.program_jabatan || r.jabatan || 'Unit Sains Kimia',
           bangunan: cleanBangunan,
           tapak_pengumpulan: cleanTapak,
-          jkkp_nama: jkkpProfile.nama || '',
-          jkkp_ukmper: jkkpProfile.ukmper || '',
-          jkkp_jawatan: jkkpProfile.jawatan || '',
-          jkkp_no_tel: jkkpProfile.no_tel || '',
-          jkkp_tandatangan: jkkpProfile.tandatangan_base64 || ''
+          // MAKLUMAT JKKP BANGUNAN
+          jkkp_nama: matchedJkkp.nama || '',
+          jkkp_ukmper: matchedJkkp.ukmper || '',
+          jkkp_jawatan: matchedJkkp.jawatan || '',
+          jkkp_no_tel: matchedJkkp.no_tel || '',
+          jkkp_tandatangan: matchedJkkp.tandatangan_base64 || ''
         };
       });
 

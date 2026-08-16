@@ -44,6 +44,9 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   const [tarikhPelupusan, setTarikhPelupusan] = useState('');
   const [penjelasanKod, setPenjelasanKod] = useState('Sisa pelarut organik terpakai');
 
+  // FILTER STATE UNTUK JENIS BORANG PELUPUSAN
+  const [filterJenisBorang, setFilterJenisBorang] = useState('');
+
   const [selectedWasteIds, setSelectedWasteIds] = useState([]);
 
   const [wasteItems, setWasteItems] = useState([
@@ -57,14 +60,30 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   const userRole = (profile?.role || profile?.peranan || 'Penjana').toString().toUpperCase();
   const isJkkpRole = userRole.includes('JKKP');
 
-  // TAPIS REKOD: JIKA JKKP, PAPAR SEMUA SISA DALAM BANGUNAN YANG SAMA. JIKA PENJANA, PAPAR SISA SENDIRI SAHAJA.
-  const myWasteRecords = allWasteRecords.filter((r) => {
+  // TAPIS REKOD SENDIRI / BANGUNAN
+  const baseWasteRecords = allWasteRecords.filter((r) => {
     if (isJkkpRole) {
       if (!profile?.bangunan) return true;
       return (r.bangunan || '').trim().toLowerCase() === (profile?.bangunan || '').trim().toLowerCase();
     }
     return r.user_id === session?.user?.id;
   });
+
+  // TAPIS REKOD MENGIKUT JENIS BORANG PELUPUSAN (SISA KIMIA VS SW409 KACA/BOTOL)
+  const myWasteRecords = baseWasteRecords.filter((r) => {
+    if (filterJenisBorang === 'KIMIA') {
+      return r.kod_sw !== 'SW409';
+    }
+    if (filterJenisBorang === 'KACA') {
+      return r.kod_sw === 'SW409';
+    }
+    return true;
+  });
+
+  function handleFilterJenisBorangChange(val) {
+    setFilterJenisBorang(val);
+    setSelectedWasteIds([]); // Reset pilihan bila jenis borang ditukar
+  }
 
   function toggleSelectWaste(id) {
     if (selectedWasteIds.includes(id)) {
@@ -346,7 +365,7 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     setLoading(false);
   }
 
-  // FUNGSI CETAK BORANG PDF (BESERTA AUTO-GENERATE TANDATANGAN JKKP)
+  // FUNGSI CETAK BORANG PDF (BESERTA SEMAKAN CAMPURAN SISA KIMIA VS KACA/SW409)
   function handlePrintSelectedPdf() {
     const selectedRecords = myWasteRecords.filter((r) => selectedWasteIds.includes(r.id_sisa));
     if (selectedRecords.length === 0) {
@@ -354,11 +373,22 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
       return;
     }
 
-    // SEKATAN: HALANG CETAKAN JIKA ADA REKOD BELUM DISAHKAN JKKP
+    // SEKATAN 1: HALANG CETAKAN JIKA ADA REKOD BELUM DISAHKAN JKKP
     const unapproved = selectedRecords.filter((r) => !isRecordApproved(r.status));
     if (unapproved.length > 0) {
       alert(
         `Tindakan tidak dibenarkan: Terdapat ${unapproved.length} rekod sisa terpilih yang belum disahkan oleh JKKP Bangunan.\n\nBorang PDF hanya boleh dicetak setelah permohonan disahkan oleh JKKP Bangunan.`
+      );
+      return;
+    }
+
+    // SEKATAN 2: HALANG PENCAMPURAN REKOD SW409 (KACA) DENGAN SISA KIMIA LAIN IN ONE PRINT
+    const hasSw409 = selectedRecords.some((r) => r.kod_sw === 'SW409');
+    const hasNonSw409 = selectedRecords.some((r) => r.kod_sw !== 'SW409');
+
+    if (hasSw409 && hasNonSw409) {
+      alert(
+        'Perhatian: Anda tidak boleh mencetak Borang Sisa Kimia dan Borang Peralatan Kaca (SW409) serentak dalam satu cetakan.\n\nSila gunakan Penapis "Jenis Borang Pelupusan" di bahagian atas untuk memilih satu jenis borang sahaja.'
       );
       return;
     }
@@ -739,8 +769,39 @@ ${selectedRecords.map((r, idx) => `
         </div>
       )}
 
+      {/* CARD PENAPIS JENIS BORANG PELUPUSAN */}
+      <div style={{ ...styles.card, marginTop: '20px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1' }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>🔻</span> Tapis Rekod Mengikut Jenis Borang Pelupusan
+        </h4>
+        <div style={{ maxWidth: '450px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>
+            Jenis Borang Pelupusan *
+          </label>
+          <select
+            value={filterJenisBorang}
+            onChange={(e) => handleFilterJenisBorangChange(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              borderRadius: '6px',
+              border: '1px solid #94a3b8',
+              fontSize: '13px',
+              backgroundColor: '#ffffff',
+              color: '#0f172a',
+              fontWeight: 'bold',
+              outline: 'none'
+            }}
+          >
+            <option value="">-- Semua Jenis Borang --</option>
+            <option value="KIMIA">Borang Pelupusan Buangan Terjadual (Sisa Kimia)</option>
+            <option value="KACA">Borang Pelupusan Buangan Terjadual (Botol Kosong & Peralatan Kaca)</option>
+          </select>
+        </div>
+      </div>
+
       {/* MONITORING TABLE CARD */}
-      <div style={{ ...styles.card, marginTop: '20px' }}>
+      <div style={{ ...styles.card, marginTop: '15px' }}>
         <h3>
           {isJkkpRole 
             ? `Status Pemantauan Sisa Bangunan (${profile?.bangunan || 'Semua Bangunan'})` 
@@ -748,9 +809,11 @@ ${selectedRecords.map((r, idx) => `
         </h3>
         {myWasteRecords.length === 0 ? (
           <p style={{ color: '#666' }}>
-            {isJkkpRole 
-              ? `Tiada rekod sisa didaftarkan di bawah bangunan ${profile?.bangunan || 'anda'} lagi.` 
-              : 'Tiada rekod sisa didaftarkan oleh anda lagi.'}
+            {filterJenisBorang 
+              ? `Tiada rekod sisa dijumpai untuk jenis borang terpilih (${filterJenisBorang === 'KIMIA' ? 'Sisa Kimia' : 'Peralatan Kaca/SW409'}).`
+              : isJkkpRole 
+                ? `Tiada rekod sisa didaftarkan di bawah bangunan ${profile?.bangunan || 'anda'} lagi.` 
+                : 'Tiada rekod sisa didaftarkan oleh anda lagi.'}
           </p>
         ) : (
           <div>

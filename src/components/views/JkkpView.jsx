@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../../supabaseClient';
 import { calculateStorageDays, formatMalayDate, getQuantityText, getStatusBadgeStyle } from '../../utils/helpers';
 import { styles } from '../../styles/styles';
 
@@ -8,10 +9,13 @@ export default function JkkpView({
   handleVerifyStatus,
   setActiveTab
 }) {
-  // 3 FILTER STATES
+  // FILTER STATES
   const [filterTarikh, setFilterTarikh] = useState('');
   const [filterMakmal, setFilterMakmal] = useState('');
   const [filterPenjana, setFilterPenjana] = useState('');
+
+  // SELECTION STATE FOR BATCH APPROVAL
+  const [selectedWasteIds, setSelectedWasteIds] = useState([]);
 
   // PILIHAN DINAMIK UNTUK DROPDOWN
   const tarikhOptions = [...new Set(allWasteRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
@@ -49,6 +53,60 @@ export default function JkkpView({
     setFilterPenjana('');
   }
 
+  // FUNGSI PILIH / TANDAKAN REKOD
+  function toggleSelectWaste(id_sisa) {
+    if (selectedWasteIds.includes(id_sisa)) {
+      setSelectedWasteIds(selectedWasteIds.filter((item) => item !== id_sisa));
+    } else {
+      setSelectedWasteIds([...selectedWasteIds, id_sisa]);
+    }
+  }
+
+  function toggleSelectAll() {
+    if (selectedWasteIds.length === filteredRecords.length && filteredRecords.length > 0) {
+      setSelectedWasteIds([]);
+    } else {
+      setSelectedWasteIds(filteredRecords.map((r) => r.id_sisa));
+    }
+  }
+
+  // FUNGSI PENGESAHAN KELOMPOK (BATCH APPROVAL)
+  async function handleBatchApprove() {
+    const unapprovedSelected = filteredRecords.filter(
+      (r) => selectedWasteIds.includes(r.id_sisa) && !['DISAHKAN_JKKP', 'DISAHKAN', 'SAH'].includes(r.status)
+    );
+
+    if (unapprovedSelected.length === 0) {
+      alert('Sila pilih sekurang-kurangnya satu rekod yang belum disahkan.');
+      return;
+    }
+
+    const confirmApprove = window.confirm(
+      `Adakah anda pasti ingin mengesahkan ${unapprovedSelected.length} permohonan sisa yang terpilih?`
+    );
+
+    if (!confirmApprove) return;
+
+    try {
+      const idsToApprove = unapprovedSelected.map((r) => r.id_sisa);
+      const { error } = await supabase
+        .from('rekod_sisa')
+        .update({ status: 'DISAHKAN_JKKP', catatan_semakan: null })
+        .in('id_sisa', idsToApprove);
+
+      if (error) throw error;
+
+      alert(`Berjaya mengesahkan ${idsToApprove.length} rekod sisa!`);
+      setSelectedWasteIds([]);
+      if (typeof handleVerifyStatus === 'function') {
+        handleVerifyStatus(idsToApprove[0], 'DISAHKAN_JKKP');
+      }
+    } catch (err) {
+      console.error('Ralat pengesahan kelompok:', err);
+      alert('Gagal mengesahkan rekod: ' + err.message);
+    }
+  }
+
   // HELPER LOKASI PENGUMPULAN DARI REKOD SISA PENJANA
   function getExactLokasiPengumpulan(firstItem) {
     if (firstItem.tapak_pengumpulan && firstItem.tapak_pengumpulan.trim() !== '') {
@@ -74,13 +132,11 @@ export default function JkkpView({
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
     
-    // PEMETAPAN TEPAT DARI REKOD PENJANA SISA
     const programName = firstItem.program_jabatan || firstItem.jabatan || 'Unit Sains Kimia';
     const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
     const lokasiPengumpulan = getExactLokasiPengumpulan(firstItem);
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
-    // PENJANAAN ELEMEN TANDATANGAN DINAMIK JKKP
     const signatureElement = profile?.tandatangan_base64 
       ? `<img src="${profile.tandatangan_base64}" style="height: 45px; max-width: 140px; object-fit: contain; vertical-align: middle;" />`
       : `________________________________________`;
@@ -210,13 +266,11 @@ export default function JkkpView({
     const todayStr = new Date().toLocaleDateString('en-GB');
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan || firstItem.created_at);
 
-    // PEMETAPAN TEPAT DARI REKOD PENJANA SISA
     const programName = firstItem.program_jabatan || firstItem.jabatan || 'Unit Sains Kimia';
     const fakultiName = firstItem.fakulti || profile?.fakulti || 'FST';
     const lokasiPengumpulan = getExactLokasiPengumpulan(firstItem);
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
-    // PENJANAAN ELEMEN TANDATANGAN DINAMIK JKKP
     const signatureElement = profile?.tandatangan_base64 
       ? `<img src="${profile.tandatangan_base64}" style="height: 45px; max-width: 140px; object-fit: contain; vertical-align: middle;" />`
       : `________________________________________`;
@@ -432,6 +486,14 @@ export default function JkkpView({
             <table style={styles.table}>
               <thead>
                 <tr style={{ backgroundColor: '#f8f9fa' }}>
+                  <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={filteredRecords.length > 0 && selectedWasteIds.length === filteredRecords.length} 
+                      onChange={toggleSelectAll} 
+                      title="Pilih Semua Sisa"
+                    />
+                  </th>
                   <th style={styles.th}>Bil.</th>
                   <th style={styles.th}>ID Sisa</th>
                   <th style={styles.th}>Tarikh</th>
@@ -448,9 +510,17 @@ export default function JkkpView({
                 {filteredRecords.map((item, idx) => {
                   const storageDays = calculateStorageDays(item.created_at || item.tarikh_pelupusan);
                   const isApproved = item.status === 'DISAHKAN_JKKP' || item.status === 'DISAHKAN' || item.status === 'SAH';
+                  const isChecked = selectedWasteIds.includes(item.id_sisa);
 
                   return (
-                    <tr key={item.id || idx} style={{ borderBottom: '1px solid #eee' }}>
+                    <tr key={item.id || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : '#fff' }}>
+                      <td style={{ ...styles.td, textAlign: 'center' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked} 
+                          onChange={() => toggleSelectWaste(item.id_sisa)} 
+                        />
+                      </td>
                       <td style={styles.td}>{idx + 1}</td>
                       <td style={styles.td}><strong>{item.id_sisa}</strong></td>
                       <td style={styles.td}>{formatMalayDate(item.tarikh_pelupusan || item.created_at)}</td>
@@ -495,6 +565,31 @@ export default function JkkpView({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* BOTTOM ACTION BAR FOR BATCH APPROVAL */}
+        {filteredRecords.length > 0 && (
+          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#eef2f7', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
+              📌 Terpilih: <span style={{ color: '#0056b3' }}>{selectedWasteIds.length}</span> daripada {filteredRecords.length} rekod sisa
+            </div>
+
+            <button
+              onClick={handleBatchApprove}
+              disabled={selectedWasteIds.length === 0}
+              style={{
+                ...styles.button,
+                backgroundColor: selectedWasteIds.length > 0 ? '#28a745' : '#94a3b8',
+                padding: '10px 20px',
+                fontSize: '13px',
+                cursor: selectedWasteIds.length > 0 ? 'pointer' : 'not-allowed',
+                opacity: selectedWasteIds.length > 0 ? 1 : 0.6,
+                width: 'auto'
+              }}
+            >
+              ✓ Sahkan Permohonan Terpilih (JKKP)
+            </button>
           </div>
         )}
       </div>

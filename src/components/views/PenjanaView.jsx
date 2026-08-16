@@ -259,6 +259,8 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     setLoading(true);
 
     const fakultiCode = profile?.fakulti || 'FST';
+    const buildingName = profile?.bangunan || '';
+    const collectionSite = profile?.tapak_pengumpulan || '';
 
     if (editingWasteId) {
       const item = wasteItems[0];
@@ -271,6 +273,8 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
         nama_buangan: item.namaBuangan.toUpperCase(),
         penjelasan_kod_sw: penjelasanKod,
         fakulti: fakultiCode,
+        bangunan: buildingName,
+        tapak_pengumpulan: collectionSite,
         status: 'DIKEMASKINI',
         catatan_semakan: null
       };
@@ -305,6 +309,8 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
           nama_buangan: item.namaBuangan.toUpperCase(),
           penjelasan_kod_sw: penjelasanKod,
           fakulti: fakultiCode,
+          bangunan: buildingName,
+          tapak_pengumpulan: collectionSite,
           status: 'DIKEMASKINI',
           catatan_semakan: null
         };
@@ -351,8 +357,8 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     const dateFormatted = formatMalayDate(firstItem.tarikh_pelupusan);
     const monthFormatted = dateFormatted.split(' ').slice(1).join(' ') || 'Ogos 2026';
     const makmalName = firstItem.nama_makmal || profile?.senarai_makmal?.[0] || 'Makmal Utama';
-    const programName = profile?.program_jabatan || 'Unit Sains Kimia';
-    const lokasiPengumpulan = profile?.tapak_pengumpulan || `Parkir Bangunan ${firstItem.fakulti || 'FST'}`;
+    const programName = firstItem.program_jabatan || profile?.program_jabatan || 'Unit Sains Kimia';
+    const lokasiPengumpulan = firstItem.tapak_pengumpulan || profile?.tapak_pengumpulan || `Parkir Bangunan ${firstItem.fakulti || 'FST'}`;
     const katMakmal = firstItem.kategori_makmal || 'Makmal Pengajaran/Perkhidmatan/Instrumentasi';
 
     let totB25 = 0, totB40 = 0, totKg = 0, totLain = 0, totKaca = 0;

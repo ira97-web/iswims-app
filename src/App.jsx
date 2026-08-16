@@ -94,7 +94,7 @@ export default function App() {
     }
   }
 
-  // ENRICHED FETCH FUNCTION: TERMASUK TAPAK PENGUMPULAN DARI PROFIL PENJANA SISA
+  // ENRICHED FETCH FUNCTION: DIKEMASKINI DENGAN KEUTAMAAN DATA PROFIL PENJANA SISA TERKINI
   async function fetchAllWasteRecords() {
     const { data: records, error: wasteError } = await supabase
       .from('rekod_sisa')
@@ -118,9 +118,10 @@ export default function App() {
         return {
           ...r,
           nama_penjana: userProfile.nama || userProfile.email || 'Pengguna UKM',
-          program_jabatan: r.program_jabatan || r.jabatan || userProfile.program_jabatan || '',
-          bangunan: r.bangunan || userProfile.bangunan || '',
-          tapak_pengumpulan: r.tapak_pengumpulan || userProfile.tapak_pengumpulan || ''
+          // UTAMAKAN DATA TERKINI DARIPADA PROFIL PENJANA SISA
+          program_jabatan: userProfile.program_jabatan || r.program_jabatan || r.jabatan || '',
+          bangunan: userProfile.bangunan || r.bangunan || '',
+          tapak_pengumpulan: userProfile.tapak_pengumpulan || r.tapak_pengumpulan || ''
         };
       });
 
@@ -325,6 +326,7 @@ export default function App() {
       alert('Profil berjaya dikemaskini!');
       setIsEditingProfile(false);
       await fetchProfile(session.user.id);
+      await fetchAllWasteRecords();
     }
     setLoading(false);
   }

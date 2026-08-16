@@ -540,20 +540,12 @@ export default function JkkpView({
                       </td>
                       <td style={styles.td}>
                         {!isApproved ? (
-                          <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
-                            <button
-                              onClick={() => handleVerifyStatus(item.id_sisa, 'DISAHKAN_JKKP')}
-                              style={{ ...styles.smallButton, backgroundColor: '#28a745', fontSize: '11px' }}
-                            >
-                              ✓ Sahkan (JKKP)
-                            </button>
-                            <button
-                              onClick={() => handleVerifyStatus(item.id_sisa, 'DIKEMBALIKAN_KE_PENJANA')}
-                              style={{ ...styles.smallButton, backgroundColor: '#dc3545', fontSize: '11px' }}
-                            >
-                              ↩️ Kembalikan
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleVerifyStatus(item.id_sisa, 'DIKEMBALIKAN_KE_PENJANA')}
+                            style={{ ...styles.smallButton, backgroundColor: '#dc3545', fontSize: '11px', width: '100%' }}
+                          >
+                            ↩️ Kembalikan
+                          </button>
                         ) : (
                           <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold' }}>
                             ✓ Telah Disahkan JKKP

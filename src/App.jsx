@@ -94,7 +94,7 @@ export default function App() {
     }
   }
 
-  // ENRICHED FETCH FUNCTION: SERAP MAKLUMAT PENJANA & MAKLUMAT JKKP BANGUNAN
+  // ENRICHED FETCH FUNCTION: DENGAN AUTO-PEMBERSIHAN "BANGUNAN UTAMA"
   async function fetchAllWasteRecords() {
     const { data: records, error: wasteError } = await supabase
       .from('rekod_sisa')
@@ -121,16 +121,27 @@ export default function App() {
 
       const enrichedRecords = records.map((r) => {
         const userProfile = profileMap[r.user_id] || {};
-        const bngKey = (userProfile.bangunan || r.bangunan || '').trim().toLowerCase();
+
+        // PENAPIS AUTOMATIK: TUKAR "BANGUNAN UTAMA" KEPADA "BANGUNAN SAINS KIMIA"
+        let cleanBangunan = userProfile.bangunan || r.bangunan || 'Bangunan Sains Kimia';
+        if (!cleanBangunan || cleanBangunan.toLowerCase().includes('utama')) {
+          cleanBangunan = 'Bangunan Sains Kimia';
+        }
+
+        let cleanTapak = userProfile.tapak_pengumpulan || r.tapak_pengumpulan || 'Parkir Bangunan Sains Kimia';
+        if (!cleanTapak || cleanTapak.toLowerCase().includes('utama')) {
+          cleanTapak = 'Parkir Bangunan Sains Kimia';
+        }
+
+        const bngKey = cleanBangunan.trim().toLowerCase();
         const jkkpProfile = jkkpMap[bngKey] || {};
 
         return {
           ...r,
           nama_penjana: userProfile.nama || userProfile.email || 'Pengguna UKM',
-          program_jabatan: userProfile.program_jabatan || r.program_jabatan || r.jabatan || '',
-          bangunan: userProfile.bangunan || r.bangunan || '',
-          tapak_pengumpulan: userProfile.tapak_pengumpulan || r.tapak_pengumpulan || '',
-          // PEMETAAN PROFIL JKKP BANGUNAN
+          program_jabatan: userProfile.program_jabatan || r.program_jabatan || r.jabatan || 'Unit Sains Kimia',
+          bangunan: cleanBangunan,
+          tapak_pengumpulan: cleanTapak,
           jkkp_nama: jkkpProfile.nama || '',
           jkkp_ukmper: jkkpProfile.ukmper || '',
           jkkp_jawatan: jkkpProfile.jawatan || '',

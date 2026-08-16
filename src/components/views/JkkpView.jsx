@@ -47,14 +47,21 @@ export default function JkkpView({
     return true;
   });
 
+  // HELPER UNTUK SEMAK STATUS PENGESAHAN
+  const isApprovedStatus = (status) => ['DISAHKAN_JKKP', 'DISAHKAN', 'SAH'].includes(status);
+
+  // SENARAI REKOD YANG BELUM DISAHKAN
+  const unapprovedRecords = filteredRecords.filter((item) => !isApprovedStatus(item.status));
+
   function resetFilters() {
     setFilterTarikh('');
     setFilterMakmal('');
     setFilterPenjana('');
   }
 
-  // FUNGSI PILIH / TANDAKAN REKOD
-  function toggleSelectWaste(id_sisa) {
+  // FUNGSI PILIH / TANDAKAN REKOD (HANYA UNTUK REKOD BELUM DISAHKAN)
+  function toggleSelectWaste(id_sisa, isApproved) {
+    if (isApproved) return; // Sekat pemilihan jika telah disahkan
     if (selectedWasteIds.includes(id_sisa)) {
       setSelectedWasteIds(selectedWasteIds.filter((item) => item !== id_sisa));
     } else {
@@ -62,18 +69,22 @@ export default function JkkpView({
     }
   }
 
+  // TOGGLE SELECT ALL (HANYA UNTUK REKOD BELUM DISAHKAN)
   function toggleSelectAll() {
-    if (selectedWasteIds.length === filteredRecords.length && filteredRecords.length > 0) {
-      setSelectedWasteIds([]);
+    const unapprovedIds = unapprovedRecords.map((r) => r.id_sisa);
+    const allUnapprovedSelected = unapprovedIds.length > 0 && unapprovedIds.every((id) => selectedWasteIds.includes(id));
+
+    if (allUnapprovedSelected) {
+      setSelectedWasteIds(selectedWasteIds.filter((id) => !unapprovedIds.includes(id)));
     } else {
-      setSelectedWasteIds(filteredRecords.map((r) => r.id_sisa));
+      setSelectedWasteIds([...new Set([...selectedWasteIds, ...unapprovedIds])]);
     }
   }
 
   // FUNGSI PENGESAHAN KELOMPOK (BATCH APPROVAL)
   async function handleBatchApprove() {
     const unapprovedSelected = filteredRecords.filter(
-      (r) => selectedWasteIds.includes(r.id_sisa) && !['DISAHKAN_JKKP', 'DISAHKAN', 'SAH'].includes(r.status)
+      (r) => selectedWasteIds.includes(r.id_sisa) && !isApprovedStatus(r.status)
     );
 
     if (unapprovedSelected.length === 0) {
@@ -389,6 +400,8 @@ export default function JkkpView({
     setTimeout(() => { printWindow.print(); }, 500);
   }
 
+  const allUnapprovedSelected = unapprovedRecords.length > 0 && unapprovedRecords.every((r) => selectedWasteIds.includes(r.id_sisa));
+
   return (
     <div>
       <div style={styles.pageTitleBar}>
@@ -489,9 +502,11 @@ export default function JkkpView({
                   <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
                     <input 
                       type="checkbox" 
-                      checked={filteredRecords.length > 0 && selectedWasteIds.length === filteredRecords.length} 
+                      checked={allUnapprovedSelected} 
                       onChange={toggleSelectAll} 
-                      title="Pilih Semua Sisa"
+                      disabled={unapprovedRecords.length === 0}
+                      title={unapprovedRecords.length === 0 ? "Tiada rekod untuk disahkan" : "Pilih Semua Sisa Belum Disahkan"}
+                      style={{ cursor: unapprovedRecords.length === 0 ? 'not-allowed' : 'pointer' }}
                     />
                   </th>
                   <th style={styles.th}>Bil.</th>
@@ -509,16 +524,19 @@ export default function JkkpView({
               <tbody>
                 {filteredRecords.map((item, idx) => {
                   const storageDays = calculateStorageDays(item.created_at || item.tarikh_pelupusan);
-                  const isApproved = item.status === 'DISAHKAN_JKKP' || item.status === 'DISAHKAN' || item.status === 'SAH';
+                  const isApproved = isApprovedStatus(item.status);
                   const isChecked = selectedWasteIds.includes(item.id_sisa);
 
                   return (
-                    <tr key={item.id || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : '#fff' }}>
+                    <tr key={item.id || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : isApproved ? '#fafafa' : '#fff' }}>
                       <td style={{ ...styles.td, textAlign: 'center' }}>
                         <input 
                           type="checkbox" 
                           checked={isChecked} 
-                          onChange={() => toggleSelectWaste(item.id_sisa)} 
+                          disabled={isApproved}
+                          onChange={() => toggleSelectWaste(item.id_sisa, isApproved)} 
+                          title={isApproved ? "Rekod ini telah disahkan" : "Tandakan untuk pengesahan"}
+                          style={{ cursor: isApproved ? 'not-allowed' : 'pointer' }}
                         />
                       </td>
                       <td style={styles.td}>{idx + 1}</td>
@@ -564,7 +582,7 @@ export default function JkkpView({
         {filteredRecords.length > 0 && (
           <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#eef2f7', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
-              📌 Terpilih: <span style={{ color: '#0056b3' }}>{selectedWasteIds.length}</span> daripada {filteredRecords.length} rekod sisa
+              📌 Terpilih: <span style={{ color: '#0056b3' }}>{selectedWasteIds.length}</span> daripada {unapprovedRecords.length} rekod sisa yang belum disahkan
             </div>
 
             <button

@@ -6,7 +6,7 @@ import { styles } from '../../styles/styles';
 import { handlePrintBatchRoshLabels } from '../../utils/printRoshLabel';
 
 // ==========================================
-// SENARAI STATUS TERKUNCI (RESTRICTED STATUSES)
+// SENARAI STATUS TERKUNCI & PENGESAHAN JKKP
 // ==========================================
 const RESTRICTED_STATUSES = [
   'DISAHKAN_JKKP',
@@ -26,6 +26,13 @@ function canModifyOrDelete(status) {
   if (!status) return true;
   const upperStatus = status.toUpperCase();
   return !RESTRICTED_STATUSES.some((restricted) => upperStatus.includes(restricted));
+}
+
+// SEMAK SAMADA REKOD TELAH DISAHKAN OLEH JKKP BANGUNAN
+function isRecordApproved(status) {
+  if (!status) return false;
+  const upper = status.toUpperCase();
+  return RESTRICTED_STATUSES.some((approved) => upper.includes(approved));
 }
 
 export default function PenjanaView({ session, profile, allWasteRecords, fetchAllWasteRecords, setActiveTab }) {
@@ -339,10 +346,20 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     setLoading(false);
   }
 
+  // FUNGSI CETAK BORANG PDF (BESERTA AUTO-GENERATE TANDATANGAN JKKP)
   function handlePrintSelectedPdf() {
     const selectedRecords = myWasteRecords.filter((r) => selectedWasteIds.includes(r.id_sisa));
     if (selectedRecords.length === 0) {
       alert('Sila tandakan (tick) sekurang-kurangnya satu sisa daripada senarai untuk dicetak.');
+      return;
+    }
+
+    // SEKATAN: HALANG CETAKAN JIKA ADA REKOD BELUM DISAHKAN JKKP
+    const unapproved = selectedRecords.filter((r) => !isRecordApproved(r.status));
+    if (unapproved.length > 0) {
+      alert(
+        `Tindakan tidak dibenarkan: Terdapat ${unapproved.length} rekod sisa terpilih yang belum disahkan oleh JKKP Bangunan.\n\nBorang PDF hanya boleh dicetak setelah permohonan disahkan oleh JKKP Bangunan.`
+      );
       return;
     }
 
@@ -370,8 +387,14 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
       totKaca += (r.peralatan_kaca_kg || 0);
     });
 
+    // TANDATANGAN DIGITAL PENJANA
     const signatureElement = profile?.tandatangan_base64 
       ? `<img src="${profile.tandatangan_base64}" style="height: 45px; max-width: 140px; object-fit: contain; vertical-align: middle;" />`
+      : `___________________________`;
+
+    // TANDATANGAN DIGITAL JKKP BANGUNAN (AUTO-GENERATED)
+    const jkkpSigElement = firstItem.jkkp_tandatangan 
+      ? `<img src="${firstItem.jkkp_tandatangan}" style="height: 45px; max-width: 140px; object-fit: contain; vertical-align: middle;" />`
       : `___________________________`;
 
     const htmlContent = `
@@ -520,13 +543,13 @@ ${selectedRecords.map((r, idx) => `
 </table>
 </td>
 <td>
-<strong style="font-size: 13px;">Disahkan oleh:</strong>
+<strong style="font-size: 13px;">Disahkan oleh (JKKP Bangunan):</strong>
 <table class="sig-line-table">
-<tr><td class="sig-line-label">Tandatangan</td><td>: ___________________________</td></tr>
-<tr><td class="sig-line-label">Nama</td><td>: ___________________________</td></tr>
-<tr><td class="sig-line-label">UKM (Per)</td><td>: ___________________________</td></tr>
-<tr><td class="sig-line-label">Jawatan</td><td>: ___________________________</td></tr>
-<tr><td class="sig-line-label">No. Tel.</td><td>: ___________________________</td></tr>
+<tr><td class="sig-line-label">Tandatangan</td><td>: ${jkkpSigElement}</td></tr>
+<tr><td class="sig-line-label">Nama</td><td>: <strong>${firstItem.jkkp_nama || '-'}</strong></td></tr>
+<tr><td class="sig-line-label">UKM (Per)</td><td>: <strong>${firstItem.jkkp_ukmper || '-'}</strong></td></tr>
+<tr><td class="sig-line-label">Jawatan</td><td>: <strong>${firstItem.jkkp_jawatan || '-'}</strong></td></tr>
+<tr><td class="sig-line-label">No. Tel.</td><td>: <strong>${firstItem.jkkp_no_tel || '-'}</strong></td></tr>
 </table>
 </td>
 </tr>
@@ -547,10 +570,20 @@ ${selectedRecords.map((r, idx) => `
     }
   }
 
+  // FUNGSI CETAK LABEL ROSH (DENGAN SEKATAN REKOD UNAPPROVED)
   function handlePrintSelectedLabels() {
     const selectedRecords = myWasteRecords.filter((r) => selectedWasteIds.includes(r.id_sisa));
     if (selectedRecords.length === 0) {
       alert('Sila tandakan (tick) sekurang-kurangnya satu sisa daripada senarai untuk mencetak label.');
+      return;
+    }
+
+    // SEKATAN: HALANG CETAKAN LABEL JIKA ADA REKOD BELUM DISAHKAN JKKP
+    const unapproved = selectedRecords.filter((r) => !isRecordApproved(r.status));
+    if (unapproved.length > 0) {
+      alert(
+        `Tindakan tidak dibenarkan: Terdapat ${unapproved.length} rekod sisa terpilih yang belum disahkan oleh JKKP Bangunan.\n\nLabel ROSH hanya boleh dicetak setelah permohonan disahkan oleh JKKP Bangunan.`
+      );
       return;
     }
 

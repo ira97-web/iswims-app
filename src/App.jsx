@@ -94,7 +94,7 @@ export default function App() {
     }
   }
 
-  // ENRICHED FETCH FUNCTION: DIKEMASKINI DENGAN KEUTAMAAN DATA PROFIL PENJANA SISA TERKINI
+  // ENRICHED FETCH FUNCTION: SERAP MAKLUMAT PENJANA & MAKLUMAT JKKP BANGUNAN
   async function fetchAllWasteRecords() {
     const { data: records, error: wasteError } = await supabase
       .from('rekod_sisa')
@@ -103,25 +103,39 @@ export default function App() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, nama, email, program_jabatan, fakulti, bangunan, tapak_pengumpulan');
+      .select('id, nama, email, ukmper, jawatan, no_tel, program_jabatan, fakulti, bangunan, tapak_pengumpulan, role, peranan, tandatangan_base64');
 
     if (records) {
       const profileMap = {};
+      const jkkpMap = {};
+
       if (profiles) {
         profiles.forEach((p) => {
           profileMap[p.id] = p;
+          const userRole = (p.role || p.peranan || '').toString().toUpperCase();
+          if (userRole.includes('JKKP') && p.bangunan) {
+            jkkpMap[p.bangunan.trim().toLowerCase()] = p;
+          }
         });
       }
 
       const enrichedRecords = records.map((r) => {
         const userProfile = profileMap[r.user_id] || {};
+        const bngKey = (userProfile.bangunan || r.bangunan || '').trim().toLowerCase();
+        const jkkpProfile = jkkpMap[bngKey] || {};
+
         return {
           ...r,
           nama_penjana: userProfile.nama || userProfile.email || 'Pengguna UKM',
-          // UTAMAKAN DATA TERKINI DARIPADA PROFIL PENJANA SISA
           program_jabatan: userProfile.program_jabatan || r.program_jabatan || r.jabatan || '',
           bangunan: userProfile.bangunan || r.bangunan || '',
-          tapak_pengumpulan: userProfile.tapak_pengumpulan || r.tapak_pengumpulan || ''
+          tapak_pengumpulan: userProfile.tapak_pengumpulan || r.tapak_pengumpulan || '',
+          // PEMETAAN PROFIL JKKP BANGUNAN
+          jkkp_nama: jkkpProfile.nama || '',
+          jkkp_ukmper: jkkpProfile.ukmper || '',
+          jkkp_jawatan: jkkpProfile.jawatan || '',
+          jkkp_no_tel: jkkpProfile.no_tel || '',
+          jkkp_tandatangan: jkkpProfile.tandatangan_base64 || ''
         };
       });
 

@@ -46,7 +46,18 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     }
   ]);
 
-  const myWasteRecords = allWasteRecords.filter((r) => r.user_id === session?.user?.id);
+  // SEMAK PERANAN PENGGUNA (JKKP BANGUNAN VS PENJANA)
+  const userRole = (profile?.role || profile?.peranan || 'Penjana').toString().toUpperCase();
+  const isJkkpRole = userRole.includes('JKKP');
+
+  // TAPIS REKOD: JIKA JKKP, PAPAR SEMUA SISA DALAM BANGUNAN YANG SAMA. JIKA PENJANA, PAPAR SISA SENDIRI SAHAJA.
+  const myWasteRecords = allWasteRecords.filter((r) => {
+    if (isJkkpRole) {
+      if (!profile?.bangunan) return true;
+      return (r.bangunan || '').trim().toLowerCase() === (profile?.bangunan || '').trim().toLowerCase();
+    }
+    return r.user_id === session?.user?.id;
+  });
 
   function toggleSelectWaste(id) {
     if (selectedWasteIds.includes(id)) {
@@ -118,6 +129,10 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   }
 
   function handleEditWasteItem(item) {
+    if (isJkkpRole) {
+      alert("Akses Terhad: Pengguna JKKP Bangunan tidak dibenarkan meminda rekod sisa Penjana.");
+      return;
+    }
     if (!canModifyOrDelete(item.status)) {
       alert("Tindakan tidak dibenarkan: Rekod telah diproses oleh pihak atasan. Sila hubungi Pegawai/Admin i-SWIMS untuk bantuan.");
       return;
@@ -148,6 +163,10 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
 
   // FUNGSI HAPUS REKOD SISA
   async function handleDeleteWaste(id_sisa, status) {
+    if (isJkkpRole) {
+      alert("Akses Terhad: Pengguna JKKP Bangunan tidak dibenarkan memadam rekod sisa Penjana.");
+      return;
+    }
     if (!canModifyOrDelete(status)) {
       alert("Tindakan tidak dibenarkan: Rekod ini telah diproses oleh pihak atasan. Sila hubungi Pegawai/Admin i-SWIMS untuk bantuan.");
       return;
@@ -183,6 +202,10 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   }
 
   async function handleUploadSds(id_sisa, file) {
+    if (isJkkpRole) {
+      alert("Akses Terhad: Pengguna JKKP Bangunan tidak dibenarkan memuat naik fail SDS.");
+      return;
+    }
     if (!file) return;
     if (file.type !== 'application/pdf') {
       alert('Sila muatnaik fail format PDF sahaja.');
@@ -229,6 +252,10 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
 
   async function handleAddOrUpdateWaste(e) {
     e.preventDefault();
+    if (isJkkpRole) {
+      alert("Akses Terhad: Pengguna JKKP Bangunan tidak dibenarkan mendaftarkan sisa.");
+      return;
+    }
     setLoading(true);
 
     const fakultiCode = profile?.fakulti || 'FST';
@@ -531,142 +558,161 @@ ${selectedRecords.map((r, idx) => `
         <button onClick={() => setActiveTab('HUB')} style={styles.backButton}>← Kembali ke Papan Pemuka</button>
       </div>
 
-      {/* FORM SECTION */}
-      <div style={styles.card}>
-        <h3>{editingWasteId ? `Kemaskini Sisa (${editingWasteId})` : 'Borang Pendaftaran Sisa Terjadual'}</h3>
-        {editingWasteId && (
-          <p style={{ color: '#856404', backgroundColor: '#fff3cd', padding: '8px', borderRadius: '4px' }}>
-            Sila kemaskini makmal, kod SW, nama bahan, atau kuantiti dan tekan Hantar Pembetulan Rekod.
+      {/* FORM SECTION (DISEMBUNYIKAN UNTUK JKKP BANGUNAN) */}
+      {isJkkpRole ? (
+        <div style={{ ...styles.card, backgroundColor: '#f0f9ff', border: '1px solid #0284c7' }}>
+          <h3 style={{ margin: 0, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>ℹ️</span> Mod Paparan Sahaja (JKKP Bangunan)
+          </h3>
+          <p style={{ margin: '8px 0 0 0', color: '#0369a1', fontSize: '13px', lineHeight: '1.5' }}>
+            Sebagai pegawai <strong>JKKP Bangunan ({profile?.bangunan || 'Semua Bangunan'})</strong>, anda hanya dibenarkan melihat dan memantau rekod sisa yang didaftarkan oleh Penjana Sisa di bawah bangunan anda. Anda tidak dibenarkan menambah atau mengemas kini borang di halaman ini.
           </p>
-        )}
+        </div>
+      ) : (
+        <div style={styles.card}>
+          <h3>{editingWasteId ? `Kemaskini Sisa (${editingWasteId})` : 'Borang Pendaftaran Sisa Terjadual'}</h3>
+          {editingWasteId && (
+            <p style={{ color: '#856404', backgroundColor: '#fff3cd', padding: '8px', borderRadius: '4px' }}>
+              Sila kemaskini makmal, kod SW, nama bahan, atau kuantiti dan tekan Hantar Pembetulan Rekod.
+            </p>
+          )}
 
-        <form onSubmit={handleAddOrUpdateWaste} style={styles.form}>
-          <div style={styles.gridFour}>
-            <div>
-              <label style={styles.label}>Makmal Sumber Sisa</label>
-              <select value={sisaMakmal} onChange={(e) => setSisaMakmal(e.target.value)} required style={styles.input}>
-                <option value="">-- PILIH MAKMAL SUMBER --</option>
-                {(profile?.senarai_makmal || []).map((m, idx) => (
-                  m ? <option key={idx} value={m}>{m}</option> : null
-                ))}
-              </select>
+          <form onSubmit={handleAddOrUpdateWaste} style={styles.form}>
+            <div style={styles.gridFour}>
+              <div>
+                <label style={styles.label}>Makmal Sumber Sisa</label>
+                <select value={sisaMakmal} onChange={(e) => setSisaMakmal(e.target.value)} required style={styles.input}>
+                  <option value="">-- PILIH MAKMAL SUMBER --</option>
+                  {(profile?.senarai_makmal || []).map((m, idx) => (
+                    m ? <option key={idx} value={m}>{m}</option> : null
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={styles.label}>Kategori Makmal</label>
+                <select value={kategoriMakmal} onChange={(e) => setKategoriMakmal(e.target.value)} required style={styles.input}>
+                  <option value="">-- PILIH KATEGORI MAKMAL --</option>
+                  {kategoriMakmalList.map((kat) => (
+                    <option key={kat} value={kat}>{kat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={styles.label}>Siri Pelupusan</label>
+                <select value={siriPelupusan} onChange={(e) => handleSiriChange(e.target.value)} required style={styles.input}>
+                  <option value="">-- PILIH SIRI --</option>
+                  {siriPelupusanList.map((s) => (
+                    <option key={s.id} value={s.id}>{s.id}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={styles.label}>Tarikh Pelupusan</label>
+                <select value={tarikhPelupusan} onChange={(e) => handleTarikhChange(e.target.value)} required style={styles.input}>
+                  <option value="">-- PILIH TARIKH --</option>
+                  {siriPelupusanList.map((s) => (
+                    <option key={s.isoDate} value={s.isoDate}>{s.date}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div>
-              <label style={styles.label}>Kategori Makmal</label>
-              <select value={kategoriMakmal} onChange={(e) => setKategoriMakmal(e.target.value)} required style={styles.input}>
-                <option value="">-- PILIH KATEGORI MAKMAL --</option>
-                {kategoriMakmalList.map((kat) => (
-                  <option key={kat} value={kat}>{kat}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={styles.label}>Siri Pelupusan</label>
-              <select value={siriPelupusan} onChange={(e) => handleSiriChange(e.target.value)} required style={styles.input}>
-                <option value="">-- PILIH SIRI --</option>
-                {siriPelupusanList.map((s) => (
-                  <option key={s.id} value={s.id}>{s.id}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={styles.label}>Tarikh Pelupusan</label>
-              <select value={tarikhPelupusan} onChange={(e) => handleTarikhChange(e.target.value)} required style={styles.input}>
-                <option value="">-- PILIH TARIKH --</option>
-                {siriPelupusanList.map((s) => (
-                  <option key={s.isoDate} value={s.isoDate}>{s.date}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <h4 style={{ margin: 0, color: '#0056b3' }}>🧪 Senarai Bahan / Sisa Kimia ({wasteItems.length} Item)</h4>
-              {!editingWasteId && (
-                <button type="button" onClick={handleAddWasteItemRow} style={{ ...styles.button, backgroundColor: '#28a745', padding: '6px 12px', fontSize: '13px' }}>
-                  + Tambah Bahan Sisa
-                </button>
-              )}
-            </div>
-
-            {wasteItems.map((item, idx) => (
-              <div key={item.id} style={{ backgroundColor: '#f8f9fa', border: '1px solid #e2e8f0', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#4a5568' }}>Item #{idx + 1}</span>
-                  {wasteItems.length > 1 && !editingWasteId && (
-                    <button type="button" onClick={() => handleRemoveWasteItemRow(item.id)} style={{ ...styles.smallButton, backgroundColor: '#dc3545' }}>
-                      ✕ Padam Item
-                    </button>
-                  )}
-                </div>
-
-                <div style={styles.gridTwo}>
-                  <div>
-                    <label style={styles.label}>Kod SW</label>
-                    <select value={item.kodSw} onChange={(e) => handleWasteItemChange(item.id, 'kodSw', e.target.value)} required style={styles.input}>
-                      <option value="">-- PILIH KOD SW --</option>
-                      <option value="SW103">SW103 - Buangan Bateri Kadmium/Nikel/Raksa</option>
-                      <option value="SW109">SW109 - Buangan Mengandungi Raksa</option>
-                      <option value="SW206">SW206 - Asid Tidak Organik Terpakai</option>
-                      <option value="SW301">SW301 - Asid Organik Terpakai (pH ≤ 2)</option>
-                      <option value="SW305">SW305 - Minyak Pelincir Terpakai</option>
-                      <option value="SW320">SW320 - Buangan Mengandungi Formaldehid</option>
-                      <option value="SW322">SW322 - Buangan Pelarut Organik Bukan Terhalogen</option>
-                      <option value="SW323">SW323 - Buangan Pelarut Organik Terhalogen</option>
-                      <option value="SW402">SW402 - Alkali Terpakai With pH ≥ 11.5</option>
-                      <option value="SW405">SW405 - Buangan Farmaseutikal</option>
-                      <option value="SW409">SW409 - Bekas, Beg atau Kelengkapan Tercemar / Peralatan Kaca</option>
-                      <option value="SW410">SW410 - Bahan Tercemar: Kain, Plastik, Sarung Tangan</option>
-                      <option value="SW421">SW421 - Campuran Buangan Terjadual</option>
-                      <option value="SW422">SW422 - Campuran Buangan Terjadual dan Tidak Terjadual</option>
-                      <option value="SW423">SW423 - Larutan Pemprosesan Terpakai / Fotografi</option>
-                      <option value="SW430">SW430 - Bahan Kimia Makmal Usang</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={styles.label}>Nama Bahan / Sisa Kimia</label>
-                    <input type="text" placeholder="e.g. TRIS(2-AMINOETHYL)AMINE" value={item.namaBuangan} onChange={(e) => handleWasteItemChange(item.id, 'namaBuangan', e.target.value)} required style={{ ...styles.input, textTransform: 'uppercase' }} />
-                  </div>
-                </div>
-
-                {item.kodSw === 'SW409' ? (
-                  <div style={{ ...styles.gridFour, marginTop: '8px' }}>
-                    <div><label style={styles.label}>Botol 2.5L Kosong</label><input type="number" min="0" placeholder="0" value={item.botol25LKosong} onChange={(e) => handleWasteItemChange(item.id, 'botol25LKosong', e.target.value)} style={styles.input} /></div>
-                    <div><label style={styles.label}>Botol 4.0L Kosong</label><input type="number" min="0" placeholder="0" value={item.botol40LKosong} onChange={(e) => handleWasteItemChange(item.id, 'botol40LKosong', e.target.value)} style={styles.input} /></div>
-                    <div><label style={styles.label}>Lain-lain (Kg)</label><input type="number" step="0.01" min="0" placeholder="0.00" value={item.lainLainKg} onChange={(e) => handleWasteItemChange(item.id, 'lainLainKg', e.target.value)} style={styles.input} /></div>
-                    <div><label style={styles.label}>Peralatan Kaca (Kg)</label><input type="number" step="0.01" min="0" placeholder="0.00" value={item.peralatanKacaKg} onChange={(e) => handleWasteItemChange(item.id, 'peralatanKacaKg', e.target.value)} style={styles.input} /></div>
-                  </div>
-                ) : (
-                  <div style={{ ...styles.gridThree, marginTop: '8px' }}>
-                    <div><label style={styles.label}>Botol 2.5L (Kimia)</label><input type="number" min="0" placeholder="0" value={item.botol25L} onChange={(e) => handleWasteItemChange(item.id, 'botol25L', e.target.value)} style={styles.input} /></div>
-                    <div><label style={styles.label}>Botol 4.0L (Kimia)</label><input type="number" min="0" placeholder="0" value={item.botol40L} onChange={(e) => handleWasteItemChange(item.id, 'botol40L', e.target.value)} style={styles.input} /></div>
-                    <div><label style={styles.label}>Berat (Kilogram)</label><input type="number" step="0.01" min="0" placeholder="0.00" value={item.kilogramKimia} onChange={(e) => handleWasteItemChange(item.id, 'kilogramKimia', e.target.value)} style={styles.input} /></div>
-                  </div>
+            <div style={{ marginTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h4 style={{ margin: 0, color: '#0056b3' }}>🧪 Senarai Bahan / Sisa Kimia ({wasteItems.length} Item)</h4>
+                {!editingWasteId && (
+                  <button type="button" onClick={handleAddWasteItemRow} style={{ ...styles.button, backgroundColor: '#28a745', padding: '6px 12px', fontSize: '13px' }}>
+                    + Tambah Bahan Sisa
+                  </button>
                 )}
               </div>
-            ))}
-          </div>
 
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-            <button type="submit" disabled={loading} style={{ ...styles.button, backgroundColor: '#28a745', flex: 1 }}>
-              {loading ? 'Memproses...' : editingWasteId ? 'Hantar Pembetulan Rekod' : `Hantar ${wasteItems.length} Rekod Sisa`}
-            </button>
-            {editingWasteId && (
-              <button type="button" onClick={resetWasteForm} style={{ ...styles.button, backgroundColor: '#6c757d', width: 'auto' }}>Batal</button>
-            )}
-          </div>
-        </form>
-      </div>
+              {wasteItems.map((item, idx) => (
+                <div key={item.id} style={{ backgroundColor: '#f8f9fa', border: '1px solid #e2e8f0', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#4a5568' }}>Item #{idx + 1}</span>
+                    {wasteItems.length > 1 && !editingWasteId && (
+                      <button type="button" onClick={() => handleRemoveWasteItemRow(item.id)} style={{ ...styles.smallButton, backgroundColor: '#dc3545' }}>
+                        ✕ Padam Item
+                      </button>
+                    )}
+                  </div>
 
-      {/* MONITORING TABLE & CHECKBOX ACTIONS SECTION */}
+                  <div style={styles.gridTwo}>
+                    <div>
+                      <label style={styles.label}>Kod SW</label>
+                      <select value={item.kodSw} onChange={(e) => handleWasteItemChange(item.id, 'kodSw', e.target.value)} required style={styles.input}>
+                        <option value="">-- PILIH KOD SW --</option>
+                        <option value="SW103">SW103 - Buangan Bateri Kadmium/Nikel/Raksa</option>
+                        <option value="SW109">SW109 - Buangan Mengandungi Raksa</option>
+                        <option value="SW206">SW206 - Asid Tidak Organik Terpakai</option>
+                        <option value="SW301">SW301 - Asid Organik Terpakai (pH ≤ 2)</option>
+                        <option value="SW305">SW305 - Minyak Pelincir Terpakai</option>
+                        <option value="SW320">SW320 - Buangan Mengandungi Formaldehid</option>
+                        <option value="SW322">SW322 - Buangan Pelarut Organik Bukan Terhalogen</option>
+                        <option value="SW323">SW323 - Buangan Pelarut Organik Terhalogen</option>
+                        <option value="SW402">SW402 - Alkali Terpakai With pH ≥ 11.5</option>
+                        <option value="SW405">SW405 - Buangan Farmaseutikal</option>
+                        <option value="SW409">SW409 - Bekas, Beg atau Kelengkapan Tercemar / Peralatan Kaca</option>
+                        <option value="SW410">SW410 - Bahan Tercemar: Kain, Plastik, Sarung Tangan</option>
+                        <option value="SW421">SW421 - Campuran Buangan Terjadual</option>
+                        <option value="SW422">SW422 - Campuran Buangan Terjadual dan Tidak Terjadual</option>
+                        <option value="SW423">SW423 - Larutan Pemprosesan Terpakai / Fotografi</option>
+                        <option value="SW430">SW430 - Bahan Kimia Makmal Usang</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={styles.label}>Nama Bahan / Sisa Kimia</label>
+                      <input type="text" placeholder="e.g. TRIS(2-AMINOETHYL)AMINE" value={item.namaBuangan} onChange={(e) => handleWasteItemChange(item.id, 'namaBuangan', e.target.value)} required style={{ ...styles.input, textTransform: 'uppercase' }} />
+                    </div>
+                  </div>
+
+                  {item.kodSw === 'SW409' ? (
+                    <div style={{ ...styles.gridFour, marginTop: '8px' }}>
+                      <div><label style={styles.label}>Botol 2.5L Kosong</label><input type="number" min="0" placeholder="0" value={item.botol25LKosong} onChange={(e) => handleWasteItemChange(item.id, 'botol25LKosong', e.target.value)} style={styles.input} /></div>
+                      <div><label style={styles.label}>Botol 4.0L Kosong</label><input type="number" min="0" placeholder="0" value={item.botol40LKosong} onChange={(e) => handleWasteItemChange(item.id, 'botol40LKosong', e.target.value)} style={styles.input} /></div>
+                      <div><label style={styles.label}>Lain-lain (Kg)</label><input type="number" step="0.01" min="0" placeholder="0.00" value={item.lainLainKg} onChange={(e) => handleWasteItemChange(item.id, 'lainLainKg', e.target.value)} style={styles.input} /></div>
+                      <div><label style={styles.label}>Peralatan Kaca (Kg)</label><input type="number" step="0.01" min="0" placeholder="0.00" value={item.peralatanKacaKg} onChange={(e) => handleWasteItemChange(item.id, 'peralatanKacaKg', e.target.value)} style={styles.input} /></div>
+                    </div>
+                  ) : (
+                    <div style={{ ...styles.gridThree, marginTop: '8px' }}>
+                      <div><label style={styles.label}>Botol 2.5L (Kimia)</label><input type="number" min="0" placeholder="0" value={item.botol25L} onChange={(e) => handleWasteItemChange(item.id, 'botol25L', e.target.value)} style={styles.input} /></div>
+                      <div><label style={styles.label}>Botol 4.0L (Kimia)</label><input type="number" min="0" placeholder="0" value={item.botol40L} onChange={(e) => handleWasteItemChange(item.id, 'botol40L', e.target.value)} style={styles.input} /></div>
+                      <div><label style={styles.label}>Berat (Kilogram)</label><input type="number" step="0.01" min="0" placeholder="0.00" value={item.kilogramKimia} onChange={(e) => handleWasteItemChange(item.id, 'kilogramKimia', e.target.value)} style={styles.input} /></div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button type="submit" disabled={loading} style={{ ...styles.button, backgroundColor: '#28a745', flex: 1 }}>
+                {loading ? 'Memproses...' : editingWasteId ? 'Hantar Pembetulan Rekod' : `Hantar ${wasteItems.length} Rekod Sisa`}
+              </button>
+              {editingWasteId && (
+                <button type="button" onClick={resetWasteForm} style={{ ...styles.button, backgroundColor: '#6c757d', width: 'auto' }}>Batal</button>
+              )}
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MONITORING TABLE CARD */}
       <div style={{ ...styles.card, marginTop: '20px' }}>
-        <h3>Status Pemantauan Sisa Peribadi</h3>
+        <h3>
+          {isJkkpRole 
+            ? `Status Pemantauan Sisa Bangunan (${profile?.bangunan || 'Semua Bangunan'})` 
+            : 'Status Pemantauan Sisa Peribadi'}
+        </h3>
         {myWasteRecords.length === 0 ? (
-          <p style={{ color: '#666' }}>Tiada rekod sisa didaftarkan oleh anda lagi.</p>
+          <p style={{ color: '#666' }}>
+            {isJkkpRole 
+              ? `Tiada rekod sisa didaftarkan di bawah bangunan ${profile?.bangunan || 'anda'} lagi.` 
+              : 'Tiada rekod sisa didaftarkan oleh anda lagi.'}
+          </p>
         ) : (
           <div>
             <div style={{ overflowX: 'auto' }}>
@@ -682,6 +728,7 @@ ${selectedRecords.map((r, idx) => `
                       />
                     </th>
                     <th style={styles.th}>ID Sisa</th>
+                    {isJkkpRole && <th style={styles.th}>Penjana Sisa</th>}
                     <th style={styles.th}>Makmal</th>
                     <th style={styles.th}>Kod SW</th>
                     <th style={styles.th}>Nama Bahan</th>
@@ -708,6 +755,12 @@ ${selectedRecords.map((r, idx) => `
                           />
                         </td>
                         <td style={styles.td}><strong>{item.id_sisa}</strong></td>
+                        {isJkkpRole && (
+                          <td style={styles.td}>
+                            <div><strong>{item.nama_penjana || 'Penjana'}</strong></div>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>{item.program_jabatan || '-'}</div>
+                          </td>
+                        )}
                         <td style={styles.td}>{item.nama_makmal || '-'}</td>
                         <td style={styles.td}>{item.kod_sw}</td>
                         <td style={styles.td}>{item.nama_buangan}</td>
@@ -724,7 +777,14 @@ ${selectedRecords.map((r, idx) => `
 
                         {/* PINDA / HAPUS COLUMN */}
                         <td style={{ ...styles.td, textAlign: 'center' }}>
-                          {isEditableOrDeletable ? (
+                          {isJkkpRole ? (
+                            <span 
+                              style={{ fontSize: '11px', color: '#0284c7', fontWeight: 'bold', backgroundColor: '#e0f2fe', padding: '4px 8px', borderRadius: '4px' }}
+                              title="Mod paparan sahaja untuk JKKP Bangunan."
+                            >
+                              👁️ Paparan Sahaja
+                            </span>
+                          ) : isEditableOrDeletable ? (
                             <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                               <button 
                                 onClick={() => handleEditWasteItem(item)} 
@@ -765,19 +825,23 @@ ${selectedRecords.map((r, idx) => `
                                   <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ SDS Dimuatnaik</span>
                                   <div style={{ marginTop: '4px', display: 'flex', gap: '6px' }}>
                                     <a href={item.sds_url} target="_blank" rel="noreferrer" style={{ color: '#0056b3', textDecoration: 'underline' }}>Lihat SDS</a>
-                                    <label style={{ color: '#dc3545', cursor: 'pointer', textDecoration: 'underline' }}>
-                                      Tukar
-                                      <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => handleUploadSds(item.id_sisa, e.target.files[0])} />
-                                    </label>
+                                    {!isJkkpRole && (
+                                      <label style={{ color: '#dc3545', cursor: 'pointer', textDecoration: 'underline' }}>
+                                        Tukar
+                                        <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => handleUploadSds(item.id_sisa, e.target.files[0])} />
+                                      </label>
+                                    )}
                                   </div>
                                 </div>
                               ) : (
-                                <input 
-                                  type="file" 
-                                  accept="application/pdf" 
-                                  onChange={(e) => handleUploadSds(item.id_sisa, e.target.files[0])}
-                                  style={{ fontSize: '10px', width: '100%' }}
-                                />
+                                !isJkkpRole && (
+                                  <input 
+                                    type="file" 
+                                    accept="application/pdf" 
+                                    onChange={(e) => handleUploadSds(item.id_sisa, e.target.files[0])}
+                                    style={{ fontSize: '10px', width: '100%' }}
+                                  />
+                                )
                               )}
                             </div>
                           )}

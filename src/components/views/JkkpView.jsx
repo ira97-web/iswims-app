@@ -17,6 +17,10 @@ export default function JkkpView({
   // SELECTION STATE FOR BATCH APPROVAL
   const [selectedWasteIds, setSelectedWasteIds] = useState([]);
 
+  // SEMAK SAMADA PENGGUNA TERMASUK DALAM PERANAN JKKP
+  const userRole = (profile?.role || profile?.peranan || 'JKKP').toString().toUpperCase();
+  const isJkkpApprover = userRole.includes('JKKP');
+
   // PILIHAN DINAMIK UNTUK DROPDOWN
   const tarikhOptions = [...new Set(allWasteRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
   const makmalOptions = [...new Set(allWasteRecords.map((r) => r.nama_makmal).filter(Boolean))];
@@ -59,9 +63,9 @@ export default function JkkpView({
     setFilterPenjana('');
   }
 
-  // FUNGSI PILIH / TANDAKAN REKOD (HANYA UNTUK REKOD BELUM DISAHKAN)
+  // FUNGSI PILIH / TANDAKAN REKOD
   function toggleSelectWaste(id_sisa, isApproved) {
-    if (isApproved) return; // Sekat pemilihan jika telah disahkan
+    if (!isJkkpApprover || isApproved) return;
     if (selectedWasteIds.includes(id_sisa)) {
       setSelectedWasteIds(selectedWasteIds.filter((item) => item !== id_sisa));
     } else {
@@ -69,8 +73,9 @@ export default function JkkpView({
     }
   }
 
-  // TOGGLE SELECT ALL (HANYA UNTUK REKOD BELUM DISAHKAN)
+  // TOGGLE SELECT ALL
   function toggleSelectAll() {
+    if (!isJkkpApprover) return;
     const unapprovedIds = unapprovedRecords.map((r) => r.id_sisa);
     const allUnapprovedSelected = unapprovedIds.length > 0 && unapprovedIds.every((id) => selectedWasteIds.includes(id));
 
@@ -83,6 +88,11 @@ export default function JkkpView({
 
   // FUNGSI PENGESAHAN KELOMPOK (BATCH APPROVAL)
   async function handleBatchApprove() {
+    if (!isJkkpApprover) {
+      alert(`Akses Terhad: Pengguna peranan ${userRole} tidak dibenarkan mengesahkan borang JKKP.`);
+      return;
+    }
+
     const unapprovedSelected = filteredRecords.filter(
       (r) => selectedWasteIds.includes(r.id_sisa) && !isApprovedStatus(r.status)
     );
@@ -411,6 +421,18 @@ export default function JkkpView({
         </button>
       </div>
 
+      {/* NOTIS READ-ONLY UNTUK PENYELARAS / ROSH */}
+      {!isJkkpApprover && (
+        <div style={{ ...styles.card, backgroundColor: '#f0f9ff', border: '1px solid #0284c7', marginBottom: '20px' }}>
+          <h3 style={{ margin: 0, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>ℹ️</span> Mod Paparan Sahaja ({userRole})
+          </h3>
+          <p style={{ margin: '8px 0 0 0', color: '#0369a1', fontSize: '13px', lineHeight: '1.5' }}>
+            Sebagai pengguna berperanan <strong>{userRole}</strong>, anda hanya dibenarkan melihat rekod sisa dan memuat turun borang ringkasan (BO02 / BO04). Kelulusan borang hanya boleh dilakukan oleh JKKP Bangunan.
+          </p>
+        </div>
+      )}
+
       {/* FILTER BAR CONTAINER */}
       <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -499,16 +521,18 @@ export default function JkkpView({
             <table style={styles.table}>
               <thead>
                 <tr style={{ backgroundColor: '#f8f9fa' }}>
-                  <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={allUnapprovedSelected} 
-                      onChange={toggleSelectAll} 
-                      disabled={unapprovedRecords.length === 0}
-                      title={unapprovedRecords.length === 0 ? "Tiada rekod untuk disahkan" : "Pilih Semua Sisa Belum Disahkan"}
-                      style={{ cursor: unapprovedRecords.length === 0 ? 'not-allowed' : 'pointer' }}
-                    />
-                  </th>
+                  {isJkkpApprover && (
+                    <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={allUnapprovedSelected} 
+                        onChange={toggleSelectAll} 
+                        disabled={unapprovedRecords.length === 0}
+                        title={unapprovedRecords.length === 0 ? "Tiada rekod untuk disahkan" : "Pilih Semua Sisa Belum Disahkan"}
+                        style={{ cursor: unapprovedRecords.length === 0 ? 'not-allowed' : 'pointer' }}
+                      />
+                    </th>
+                  )}
                   <th style={styles.th}>Bil.</th>
                   <th style={styles.th}>ID Sisa</th>
                   <th style={styles.th}>Tarikh</th>
@@ -529,16 +553,18 @@ export default function JkkpView({
 
                   return (
                     <tr key={item.id || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : isApproved ? '#fafafa' : '#fff' }}>
-                      <td style={{ ...styles.td, textAlign: 'center' }}>
-                        <input 
-                          type="checkbox" 
-                          checked={isChecked} 
-                          disabled={isApproved}
-                          onChange={() => toggleSelectWaste(item.id_sisa, isApproved)} 
-                          title={isApproved ? "Rekod ini telah disahkan" : "Tandakan untuk pengesahan"}
-                          style={{ cursor: isApproved ? 'not-allowed' : 'pointer' }}
-                        />
-                      </td>
+                      {isJkkpApprover && (
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked} 
+                            disabled={isApproved}
+                            onChange={() => toggleSelectWaste(item.id_sisa, isApproved)} 
+                            title={isApproved ? "Rekod ini telah disahkan" : "Tandakan untuk pengesahan"}
+                            style={{ cursor: isApproved ? 'not-allowed' : 'pointer' }}
+                          />
+                        </td>
+                      )}
                       <td style={styles.td}>{idx + 1}</td>
                       <td style={styles.td}><strong>{item.id_sisa}</strong></td>
                       <td style={styles.td}>{formatMalayDate(item.tarikh_pelupusan || item.created_at)}</td>
@@ -557,16 +583,22 @@ export default function JkkpView({
                         </div>
                       </td>
                       <td style={styles.td}>
-                        {!isApproved ? (
-                          <button
-                            onClick={() => handleVerifyStatus(item.id_sisa, 'DIKEMBALIKAN_KE_PENJANA')}
-                            style={{ ...styles.smallButton, backgroundColor: '#dc3545', fontSize: '11px', width: '100%' }}
-                          >
-                            ↩️ Kembalikan
-                          </button>
+                        {isJkkpApprover ? (
+                          !isApproved ? (
+                            <button
+                              onClick={() => handleVerifyStatus(item.id_sisa, 'DIKEMBALIKAN_KE_PENJANA')}
+                              style={{ ...styles.smallButton, backgroundColor: '#dc3545', fontSize: '11px', width: '100%' }}
+                            >
+                              ↩️ Kembalikan
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold' }}>
+                              ✓ Telah Disahkan JKKP
+                            </span>
+                          )
                         ) : (
-                          <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold' }}>
-                            ✓ Telah Disahkan JKKP
+                          <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 'bold', backgroundColor: '#e0f2fe', padding: '4px 8px', borderRadius: '4px' }}>
+                            👁️ Paparan Sahaja
                           </span>
                         )}
                       </td>
@@ -578,8 +610,8 @@ export default function JkkpView({
           </div>
         )}
 
-        {/* BOTTOM ACTION BAR FOR BATCH APPROVAL */}
-        {filteredRecords.length > 0 && (
+        {/* BOTTOM ACTION BAR FOR BATCH APPROVAL (JKKP ONLY) */}
+        {filteredRecords.length > 0 && isJkkpApprover && (
           <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#eef2f7', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
               📌 Terpilih: <span style={{ color: '#0056b3' }}>{selectedWasteIds.length}</span> daripada {unapprovedRecords.length} rekod sisa yang belum disahkan

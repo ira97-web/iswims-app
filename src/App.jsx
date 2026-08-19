@@ -94,7 +94,7 @@ export default function App() {
     }
   }
 
-  // ENRICHED FETCH FUNCTION: CUKUP TEPAT & FLAKSIBEL UNTUK SERAP PROFIL JKKP
+  // ENRICHED FETCH FUNCTION: PEMETAAN DATA PROFIL PENJANA SISA & JKKP
   async function fetchAllWasteRecords() {
     const { data: records, error: wasteError } = await supabase
       .from('rekod_sisa')
@@ -132,13 +132,12 @@ export default function App() {
           cleanTapak = 'Parkir Bangunan Sains Kimia';
         }
 
-        // CARI PROFIL JKKP DENGAN PADANAN BANGUNAN
         const rBng = cleanBangunan.trim().toLowerCase();
         const matchedJkkp = jkkpProfiles.find((j) => {
           if (!j.bangunan) return false;
           const jBng = j.bangunan.trim().toLowerCase();
           return jBng === rBng || jBng.includes(rBng) || rBng.includes(jBng);
-        }) || jkkpProfiles[0] || {}; // Fallback ke JKKP sedia ada jika wujud
+        }) || jkkpProfiles[0] || {};
 
         return {
           ...r,
@@ -146,7 +145,6 @@ export default function App() {
           program_jabatan: userProfile.program_jabatan || r.program_jabatan || r.jabatan || 'Unit Sains Kimia',
           bangunan: cleanBangunan,
           tapak_pengumpulan: cleanTapak,
-          // MAKLUMAT JKKP BANGUNAN
           jkkp_nama: matchedJkkp.nama || '',
           jkkp_ukmper: matchedJkkp.ukmper || '',
           jkkp_jawatan: matchedJkkp.jawatan || '',
@@ -259,16 +257,18 @@ export default function App() {
     printWindow.document.close();
   }
 
+  // LOGIK HIERARKI PERANAN PENGGUNA
   const roleHierarchy = { Penjana: 1, JKKP: 2, Penyelaras: 3, ROSH: 4 };
   function hasAccess(targetRole) {
-    const userLevel = roleHierarchy[profile?.role] || 1;
+    const userRoleStr = profile?.role || profile?.peranan || 'Penjana';
+    const userLevel = roleHierarchy[userRoleStr] || 1;
     const targetLevel = roleHierarchy[targetRole] || 1;
     return userLevel >= targetLevel;
   }
 
   function handleNavigate(targetTab, targetRole) {
     if (hasAccess(targetRole)) setActiveTab(targetTab);
-    else alert(`Akses Terhad! Peranan anda (${profile?.role || 'Penjana'}) tidak mempunyai kebenaran.`);
+    else alert(`Akses Terhad! Peranan anda (${profile?.role || 'Penjana'}) tidak mempunyai kebenaran untuk membuka halaman ini.`);
   }
 
   async function handleLogin(e) {
@@ -402,7 +402,7 @@ export default function App() {
             <div>
               <div style={styles.profileName}>{profile?.nama || 'PENGGUNA UKM'}</div>
               <div style={styles.profileSubtext}>
-                UKMPer: <strong>{profile?.ukmper || '-'}</strong> | Jawatan: <strong>{profile?.jawatan || '-'}</strong> | Fakulti: <strong>{profile?.fakulti || 'FST'}</strong> | Peranan: <span style={styles.roleBadge}>{profile?.role || 'Penjana'}</span>
+                UKMPer: <strong>{profile?.ukmper || '-'}</strong> | Jawatan: <strong>{profile?.jawatan || '-'}</strong> | Fakulti: <strong>{profile?.fakulti || 'FST'}</strong> | Peranan: <span style={styles.roleBadge}>{profile?.role || profile?.peranan || 'Penjana'}</span>
               </div>
             </div>
           </div>
@@ -425,7 +425,6 @@ export default function App() {
           </div>
 
           <form onSubmit={handleSaveProfile} style={styles.form}>
-            {/* COMMON FIELDS FOR ALL ROLES */}
             <div style={styles.gridTwo}>
               <div>
                 <label style={styles.label}>Nama Penuh</label>
@@ -451,7 +450,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* ROLE 1: PENJANA SISA FIELDS (INCLUDES BANGUNAN) */}
+            {/* ROLE 1: PENJANA SISA FIELDS */}
             {activeRole === 'Penjana' && (
               <>
                 <div style={styles.gridTwo}>
@@ -730,7 +729,7 @@ export default function App() {
             <PenyelarasView profile={profile} facultyWasteRecords={facultyWasteRecords} handleVerifyStatus={handleVerifyStatus} handlePrintSummaryPdf={handlePrintSummaryPdf} setActiveTab={setActiveTab} />
           )}
           {activeTab === 'ROSH' && (
-            <RoshView allWasteRecords={allWasteRecords} handleVerifyStatus={handleVerifyStatus} handlePrintSummaryPdf={handlePrintSummaryPdf} setActiveTab={setActiveTab} />
+            <RoshView allWasteRecords={allWasteRecords} profile={profile} handleVerifyStatus={handleVerifyStatus} handlePrintSummaryPdf={handlePrintSummaryPdf} setActiveTab={setActiveTab} />
           )}
         </div>
       )}

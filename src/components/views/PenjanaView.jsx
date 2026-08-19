@@ -56,13 +56,14 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
     }
   ]);
 
-  // SEMAK PERANAN PENGGUNA (JKKP BANGUNAN VS PENJANA)
+  // SEMAK PERANAN PENGGUNA (PENJANA VS LUAR)
   const userRole = (profile?.role || profile?.peranan || 'Penjana').toString().toUpperCase();
-  const isJkkpRole = userRole.includes('JKKP');
+  const isPenjanaUser = userRole.includes('PENJANA') || userRole.includes('LAB');
+  const isReadOnlyMode = !isPenjanaUser;
 
   // TAPIS REKOD SENDIRI / BANGUNAN
   const baseWasteRecords = allWasteRecords.filter((r) => {
-    if (isJkkpRole) {
+    if (isReadOnlyMode) {
       if (!profile?.bangunan) return true;
       return (r.bangunan || '').trim().toLowerCase() === (profile?.bangunan || '').trim().toLowerCase();
     }
@@ -155,8 +156,8 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   }
 
   function handleEditWasteItem(item) {
-    if (isJkkpRole) {
-      alert("Akses Terhad: Pengguna JKKP Bangunan tidak dibenarkan meminda rekod sisa Penjana.");
+    if (isReadOnlyMode) {
+      alert(`Akses Terhad: Pengguna peranan ${userRole} tidak dibenarkan meminda rekod sisa Penjana.`);
       return;
     }
     if (!canModifyOrDelete(item.status)) {
@@ -189,8 +190,8 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
 
   // FUNGSI HAPUS REKOD SISA
   async function handleDeleteWaste(id_sisa, status) {
-    if (isJkkpRole) {
-      alert("Akses Terhad: Pengguna JKKP Bangunan tidak dibenarkan memadam rekod sisa Penjana.");
+    if (isReadOnlyMode) {
+      alert(`Akses Terhad: Pengguna peranan ${userRole} tidak dibenarkan memadam rekod sisa Penjana.`);
       return;
     }
     if (!canModifyOrDelete(status)) {
@@ -228,8 +229,8 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
   }
 
   async function handleUploadSds(id_sisa, file) {
-    if (isJkkpRole) {
-      alert("Akses Terhad: Pengguna JKKP Bangunan tidak dibenarkan memuat naik fail SDS.");
+    if (isReadOnlyMode) {
+      alert(`Akses Terhad: Pengguna peranan ${userRole} tidak dibenarkan memuat naik fail SDS.`);
       return;
     }
     if (!file) return;
@@ -278,8 +279,8 @@ export default function PenjanaView({ session, profile, allWasteRecords, fetchAl
 
   async function handleAddOrUpdateWaste(e) {
     e.preventDefault();
-    if (isJkkpRole) {
-      alert("Akses Terhad: Pengguna JKKP Bangunan tidak dibenarkan mendaftarkan sisa.");
+    if (isReadOnlyMode) {
+      alert(`Akses Terhad: Pengguna peranan ${userRole} tidak dibenarkan mendaftarkan sisa.`);
       return;
     }
     setLoading(true);
@@ -632,14 +633,14 @@ ${selectedRecords.map((r, idx) => `
         <button onClick={() => setActiveTab('HUB')} style={styles.backButton}>← Kembali ke Papan Pemuka</button>
       </div>
 
-      {/* FORM SECTION (DISEMBUNYIKAN UNTUK JKKP BANGUNAN) */}
-      {isJkkpRole ? (
+      {/* FORM SECTION (DISEMBUNYIKAN UNTUK PERANAN LUAR) */}
+      {isReadOnlyMode ? (
         <div style={{ ...styles.card, backgroundColor: '#f0f9ff', border: '1px solid #0284c7' }}>
           <h3 style={{ margin: 0, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>ℹ️</span> Mod Paparan Sahaja (JKKP Bangunan)
+            <span>ℹ️</span> Mod Paparan Sahaja ({userRole})
           </h3>
           <p style={{ margin: '8px 0 0 0', color: '#0369a1', fontSize: '13px', lineHeight: '1.5' }}>
-            Sebagai pegawai <strong>JKKP Bangunan ({profile?.bangunan || 'Semua Bangunan'})</strong>, anda hanya dibenarkan melihat dan memantau rekod sisa yang didaftarkan oleh Penjana Sisa di bawah bangunan anda. Anda tidak dibenarkan menambah atau mengemas kini borang di halaman ini.
+            Sebagai pengguna berperanan <strong>{userRole} ({profile?.bangunan || 'Semua Bangunan'})</strong>, anda hanya dibenarkan melihat rekod sisa dan memuat turun borang PDF / label SW. Anda tidak dibenarkan menambah atau mengemas kini borang di halaman ini.
           </p>
         </div>
       ) : (
@@ -808,7 +809,7 @@ ${selectedRecords.map((r, idx) => `
       {/* MONITORING TABLE CARD */}
       <div style={{ ...styles.card, marginTop: '15px' }}>
         <h3>
-          {isJkkpRole 
+          {isReadOnlyMode 
             ? `Status Pemantauan Sisa Bangunan (${profile?.bangunan || 'Semua Bangunan'})` 
             : 'Status Pemantauan Sisa Peribadi'}
         </h3>
@@ -816,7 +817,7 @@ ${selectedRecords.map((r, idx) => `
           <p style={{ color: '#666' }}>
             {filterJenisBorang 
               ? `Tiada rekod sisa dijumpai untuk jenis borang terpilih (${filterJenisBorang === 'KIMIA' ? 'Sisa Kimia' : 'Peralatan Kaca/SW409'}).`
-              : isJkkpRole 
+              : isReadOnlyMode 
                 ? `Tiada rekod sisa didaftarkan di bawah bangunan ${profile?.bangunan || 'anda'} lagi.` 
                 : 'Tiada rekod sisa didaftarkan oleh anda lagi.'}
           </p>
@@ -835,7 +836,7 @@ ${selectedRecords.map((r, idx) => `
                       />
                     </th>
                     <th style={styles.th}>ID Sisa</th>
-                    {isJkkpRole && <th style={styles.th}>Penjana Sisa</th>}
+                    {isReadOnlyMode && <th style={styles.th}>Penjana Sisa</th>}
                     <th style={styles.th}>Makmal</th>
                     <th style={styles.th}>Kod SW</th>
                     <th style={styles.th}>Nama Bahan</th>
@@ -862,7 +863,7 @@ ${selectedRecords.map((r, idx) => `
                           />
                         </td>
                         <td style={styles.td}><strong>{item.id_sisa}</strong></td>
-                        {isJkkpRole && (
+                        {isReadOnlyMode && (
                           <td style={styles.td}>
                             <div><strong>{item.nama_penjana || 'Penjana'}</strong></div>
                             <div style={{ fontSize: '11px', color: '#64748b' }}>{item.program_jabatan || '-'}</div>
@@ -884,10 +885,10 @@ ${selectedRecords.map((r, idx) => `
 
                         {/* PINDA / HAPUS COLUMN */}
                         <td style={{ ...styles.td, textAlign: 'center' }}>
-                          {isJkkpRole ? (
+                          {isReadOnlyMode ? (
                             <span 
                               style={{ fontSize: '11px', color: '#0284c7', fontWeight: 'bold', backgroundColor: '#e0f2fe', padding: '4px 8px', borderRadius: '4px' }}
-                              title="Mod paparan sahaja untuk JKKP Bangunan."
+                              title={`Mod paparan sahaja untuk ${userRole}.`}
                             >
                               👁️ Paparan Sahaja
                             </span>
@@ -932,7 +933,7 @@ ${selectedRecords.map((r, idx) => `
                                   <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ SDS Dimuatnaik</span>
                                   <div style={{ marginTop: '4px', display: 'flex', gap: '6px' }}>
                                     <a href={item.sds_url} target="_blank" rel="noreferrer" style={{ color: '#0056b3', textDecoration: 'underline' }}>Lihat SDS</a>
-                                    {!isJkkpRole && (
+                                    {!isReadOnlyMode && (
                                       <label style={{ color: '#dc3545', cursor: 'pointer', textDecoration: 'underline' }}>
                                         Tukar
                                         <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => handleUploadSds(item.id_sisa, e.target.files[0])} />
@@ -941,7 +942,7 @@ ${selectedRecords.map((r, idx) => `
                                   </div>
                                 </div>
                               ) : (
-                                !isJkkpRole && (
+                                !isReadOnlyMode && (
                                   <input 
                                     type="file" 
                                     accept="application/pdf" 

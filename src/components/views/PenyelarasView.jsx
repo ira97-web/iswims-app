@@ -14,8 +14,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
   // DRUM CALCULATION FILTER STATES
   const [drumTarikh, setDrumTarikh] = useState('');
   const [drumFakulti, setDrumFakulti] = useState('');
-  const [drumKategori, setDrumKategori] = useState('');
-  const [drumLokasi, setDrumLokasi] = useState('');
   const [drumBangunan, setDrumBangunan] = useState('');
 
   // SEMAK PERANAN PENGGUNA (PENYELARAS BT VS LAIN-LAIN)
@@ -37,8 +35,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
   const drumFilteredRecords = facultyWasteRecords.filter((r) => {
     if (drumTarikh && r.tarikh_pelupusan !== drumTarikh) return false;
     if (drumFakulti && r.fakulti !== drumFakulti) return false;
-    if (drumKategori && r.kategori_makmal !== drumKategori) return false;
-    if (drumLokasi && r.tapak_pengumpulan !== drumLokasi) return false;
     if (drumBangunan && r.bangunan !== drumBangunan) return false;
     return true;
   });
@@ -46,15 +42,11 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
   // OPTION LISTS FOR DRUM FILTERS
   const tarikhOpt = [...new Set(facultyWasteRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
   const fakultiOpt = [...new Set(facultyWasteRecords.map((r) => r.fakulti).filter(Boolean))];
-  const katOpt = [...new Set(facultyWasteRecords.map((r) => r.kategori_makmal).filter(Boolean))];
-  const lokasiOpt = [...new Set(facultyWasteRecords.map((r) => r.tapak_pengumpulan).filter(Boolean))];
   const bngOpt = [...new Set(facultyWasteRecords.map((r) => r.bangunan).filter(Boolean))];
 
   function resetDrumFilters() {
     setDrumTarikh('');
     setDrumFakulti('');
-    setDrumKategori('');
-    setDrumLokasi('');
     setDrumBangunan('');
   }
 
@@ -226,7 +218,7 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
         </button>
       </div>
 
-      {/* SEKSYEN GRAF ANALITIK */}
+      {/* SEKSYEN GRAF ANALITIK (DAPAT DIPAPARKAN / DISEMBUNYIKAN) */}
       {showVisuals && (
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '25px', border: '1px solid #e2e8f0' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -265,6 +257,7 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
 
           {/* GRID UNTUK GRAF 2 & GRAF 3 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+            {/* GRAF 2: KOD SW */}
             <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
               <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>📊 Penjanaan Sisa Mengikut Kod SW (Kg)</h4>
               {swSorted.length === 0 ? (
@@ -294,6 +287,7 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
               )}
             </div>
 
+            {/* GRAF 3: KATEGORI MAKMAL */}
             <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
               <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🍕 Kategori Makmal</h4>
               {Object.keys(catMap).length === 0 ? (
@@ -321,6 +315,7 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
             </div>
           </div>
 
+          {/* GRAF 4: TINGGI MENGIKUT BANGUNAN (HORIZONTAL BARS) */}
           <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
             <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🏢 Penjanaan Sisa Tertinggi Mengikut Bangunan (Kg)</h4>
             {bngSorted.length === 0 ? (
@@ -364,8 +359,8 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
             </ul>
           </div>
 
-          {/* FILTERS FOR DRUM CALCULATION */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '15px' }}>
+          {/* FILTERS FOR DRUM CALCULATION (ONLY 3 NOW) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '15px' }}>
             <div>
               <label style={drumFilterLabelStyle}>Tarikh Pelupusan</label>
               <select value={drumTarikh} onChange={(e) => setDrumTarikh(e.target.value)} style={drumFilterSelectStyle}>
@@ -379,22 +374,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
               <select value={drumFakulti} onChange={(e) => setDrumFakulti(e.target.value)} style={drumFilterSelectStyle}>
                 <option value="">Semua PTJ</option>
                 {fakultiOpt.map((f) => <option key={f} value={f}>{f}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label style={drumFilterLabelStyle}>Kategori Makmal</label>
-              <select value={drumKategori} onChange={(e) => setDrumKategori(e.target.value)} style={drumFilterSelectStyle}>
-                <option value="">Semua Kategori</option>
-                {katOpt.map((k) => <option key={k} value={k}>{k}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label style={drumFilterLabelStyle}>Lokasi Pengumpulan</label>
-              <select value={drumLokasi} onChange={(e) => setDrumLokasi(e.target.value)} style={drumFilterSelectStyle}>
-                <option value="">Semua Lokasi</option>
-                {lokasiOpt.map((l) => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
 

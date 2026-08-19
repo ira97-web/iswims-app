@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../../supabaseClient';
 import { calculateDrumsNeeded, calculateStorageDays, calculateTotalWeightKg, getQuantityText, getStatusBadgeStyle, formatMalayDate } from '../../utils/helpers';
 import { styles } from '../../styles/styles';
 
@@ -20,10 +21,17 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
   const [filterTarikh, setFilterTarikh] = useState('');
   const [filterBangunan, setFilterBangunan] = useState('');
 
+  // SELECTION STATE UNTUK PENGESAHAN KELOMPOK PENYELARAS BT
+  const [selectedTableIds, setSelectedTableIds] = useState([]);
+
   // SEMAK PERANAN PENGGUNA (PENYELARAS BT VS LAIN-LAIN)
   const userRole = (profile?.role || profile?.peranan || 'Penyelaras').toString().toUpperCase();
   const isPenyelarasApprover = userRole.includes('PENYELARAS');
   const userFaculty = profile?.fakulti || 'FST';
+
+  // HELPER UNTUK SEMAK STATUS PENGESAHAN PENYELARAS BT
+  const isApprovedByPenyelarasStatus = (status) =>
+    ['DISAHKAN_OLEH_PENYELARAS', 'DISAHKAN_PENYELARAS', 'DISAHKAN_ROSH', 'DISAHKAN_OLEH_ROSH_UKM', 'DILUPUSKAN', 'SELESAI'].includes((status || '').toUpperCase());
 
   // 1. TAPISAN KETAT FAKULTI: HANYA PAPAR DATA FAKULTI PENYELARAS BT SAHAJA
   const strictFacultyRecords = facultyWasteRecords.filter((r) => {
@@ -49,9 +57,76 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
     return true;
   });
 
+  // REKOD JADUAL YANG BELUM DISAHKAN PENYELARAS
+  const unapprovedTableRecords = filteredTableRecords.filter((r) => !isApprovedByPenyelarasStatus(r.status));
+
   // DROPDOWN OPTIONS UNTUK PENAPIS JADUAL
   const tableTarikhOptions = [...new Set(strictFacultyRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
   const tableBangunanOptions = [...new Set(strictFacultyRecords.map((r) => r.bangunan).filter(Boolean))];
+
+  // LOGIK TANDAKAN REKOD JADUAL PENYELARAS
+  function toggleSelectTableWaste(id_sisa, isApproved) {
+    if (!isPenyelarasApprover || isApproved) return;
+    if (selectedTableIds.includes(id_sisa)) {
+      setSelectedTableIds(selectedTableIds.filter((id) => id !== id_sisa));
+    } else {
+      setSelectedTableIds([...selectedTableIds, id_sisa]);
+    }
+  }
+
+  function toggleSelectAllTable() {
+    if (!isPenyelarasApprover) return;
+    const unapprovedIds = unapprovedTableRecords.map((r) => r.id_sisa);
+    const allSelected = unapprovedIds.length > 0 && unapprovedIds.every((id) => selectedTableIds.includes(id));
+
+    if (allSelected) {
+      setSelectedTableIds(selectedTableIds.filter((id) => !unapprovedIds.includes(id)));
+    } else {
+      setSelectedTableIds([...new Set([...selectedTableIds, ...unapprovedIds])]);
+    }
+  }
+
+  // FUNGSI PENGESAHAN KELOMPOK (BATCH APPROVAL PENYELARAS BT)
+  async function handleBatchApprovePenyelaras() {
+    if (!isPenyelarasApprover) {
+      alert(`Akses Terhad: Pengguna peranan ${userRole} tidak dibenarkan mengesahkan borang Penyelaras BT.`);
+      return;
+    }
+
+    const unapprovedSelected = filteredTableRecords.filter(
+      (r) => selectedTableIds.includes(r.id_sisa) && !isApprovedByPenyelarasStatus(r.status)
+    );
+
+    if (unapprovedSelected.length === 0) {
+      alert('Sila pilih sekurang-kurangnya satu rekod yang belum disahkan.');
+      return;
+    }
+
+    const confirmApprove = window.confirm(
+      `Adakah anda pasti ingin mengesahkan ${unapprovedSelected.length} permohonan sisa yang terpilih?`
+    );
+
+    if (!confirmApprove) return;
+
+    try {
+      const idsToApprove = unapprovedSelected.map((r) => r.id_sisa);
+      const { error } = await supabase
+        .from('rekod_sisa')
+        .update({ status: 'DISAHKAN_OLEH_PENYELARAS', catatan_semakan: null })
+        .in('id_sisa', idsToApprove);
+
+      if (error) throw error;
+
+      alert(`Berjaya mengesahkan ${idsToApprove.length} rekod sisa oleh Penyelaras BT!`);
+      setSelectedTableIds([]);
+      if (typeof handleVerifyStatus === 'function') {
+        handleVerifyStatus(idsToApprove[0], 'DISAHKAN_OLEH_PENYELARAS');
+      }
+    } catch (err) {
+      console.error('Ralat pengesahan kelompok Penyelaras:', err);
+      alert('Gagal mengesahkan rekod: ' + err.message);
+    }
+  }
 
   // 4. LOGIK PENAPISAN PENGIRAAN DRUM
   const drumFilteredRecords = strictFacultyRecords.filter((r) => {
@@ -128,6 +203,8 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
   });
   const bngSorted = Object.entries(bngMap).sort((a, b) => b[1] - a[1]);
   const maxBngKg = Math.max(...Object.values(bngMap), 10);
+
+  const allUnapprovedSelected = unapprovedTableRecords.length > 0 && unapprovedTableRecords.every((r) => selectedTableIds.includes(r.id_sisa));
 
   return (
     <div>
@@ -500,6 +577,18 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
           <table style={styles.table}>
             <thead>
               <tr style={{ backgroundColor: '#f8f9fa' }}>
+                {isPenyelarasApprover && (
+                  <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={allUnapprovedSelected}
+                      onChange={toggleSelectAllTable}
+                      disabled={unapprovedTableRecords.length === 0}
+                      title={unapprovedTableRecords.length === 0 ? "Tiada rekod untuk disahkan" : "Pilih Semua Sisa Belum Disahkan"}
+                      style={{ cursor: unapprovedTableRecords.length === 0 ? 'not-allowed' : 'pointer' }}
+                    />
+                  </th>
+                )}
                 <th style={styles.th}>Bil.</th>
                 <th style={styles.th}>ID Sisa</th>
                 <th style={styles.th}>Makmal</th>
@@ -508,23 +597,35 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
                 <th style={styles.th}>Kuantiti</th>
                 <th style={styles.th}>Tempoh Simpanan</th>
                 <th style={styles.th}>Status</th>
-                <th style={{ ...styles.th, textAlign: 'center' }}>Tindakan Penyelaras BT</th>
               </tr>
             </thead>
             <tbody>
               {filteredTableRecords.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                  <td colSpan={isPenyelarasApprover ? 9 : 8} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                     Tiada rekod sisa fakulti dijumpai mengikut penapis semasa.
                   </td>
                 </tr>
               ) : (
                 filteredTableRecords.map((item, idx) => {
                   const storageDays = calculateStorageDays(item.created_at || item.tarikh_pelupusan);
-                  const isApprovedByPenyelaras = ['DISAHKAN_OLEH_PENYELARAS', 'DISAHKAN_PENYELARAS', 'DISAHKAN_ROSH', 'DISAHKAN_OLEH_ROSH_UKM'].includes((item.status || '').toUpperCase());
+                  const isApproved = isApprovedByPenyelarasStatus(item.status);
+                  const isChecked = selectedTableIds.includes(item.id_sisa);
 
                   return (
-                    <tr key={item.id || item.id_sisa || idx} style={{ borderBottom: '1px solid #eee' }}>
+                    <tr key={item.id || item.id_sisa || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : isApproved ? '#fafafa' : '#fff' }}>
+                      {isPenyelarasApprover && (
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={isApproved}
+                            onChange={() => toggleSelectTableWaste(item.id_sisa, isApproved)}
+                            title={isApproved ? "Rekod ini telah disahkan" : "Tandakan untuk pengesahan"}
+                            style={{ cursor: isApproved ? 'not-allowed' : 'pointer' }}
+                          />
+                        </td>
+                      )}
                       <td style={styles.td}>{idx + 1}</td>
                       <td style={styles.td}><strong>{item.id_sisa}</strong></td>
                       <td style={styles.td}>{item.nama_makmal || '-'}</td>
@@ -539,26 +640,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
                       <td style={styles.td}>
                         <span style={getStatusBadgeStyle(item.status)}>{item.status}</span>
                       </td>
-                      <td style={{ ...styles.td, textAlign: 'center' }}>
-                        {isPenyelarasApprover ? (
-                          !isApprovedByPenyelaras ? (
-                            <button 
-                              onClick={() => handleVerifyStatus(item.id_sisa, 'DISAHKAN_OLEH_PENYELARAS')} 
-                              style={{ ...styles.smallButton, backgroundColor: '#6f42c1', fontWeight: 'bold' }}
-                            >
-                              ✅ Sahkan Penyelaras
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '11px', color: '#28a745', fontWeight: 'bold' }}>
-                              ✓ Telah Disahkan Penyelaras
-                            </span>
-                          )
-                        ) : (
-                          <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 'bold', backgroundColor: '#e0f2fe', padding: '4px 8px', borderRadius: '4px' }}>
-                            👁️ Paparan Sahaja
-                          </span>
-                        )}
-                      </td>
                     </tr>
                   );
                 })
@@ -566,6 +647,31 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
             </tbody>
           </table>
         </div>
+
+        {/* BOTTOM ACTION BAR FOR PENYELARAS BATCH APPROVAL */}
+        {filteredTableRecords.length > 0 && isPenyelarasApprover && (
+          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#eef2f7', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
+              📌 Terpilih: <span style={{ color: '#0056b3' }}>{selectedTableIds.length}</span> daripada {unapprovedTableRecords.length} rekod sisa yang belum disahkan
+            </div>
+
+            <button
+              onClick={handleBatchApprovePenyelaras}
+              disabled={selectedTableIds.length === 0}
+              style={{
+                ...styles.button,
+                backgroundColor: selectedTableIds.length > 0 ? '#6f42c1' : '#94a3b8',
+                padding: '10px 20px',
+                fontSize: '13px',
+                cursor: selectedTableIds.length > 0 ? 'pointer' : 'not-allowed',
+                opacity: selectedTableIds.length > 0 ? 1 : 0.6,
+                width: 'auto'
+              }}
+            >
+              ✅ Sahkan Permohonan Terpilih (Penyelaras BT)
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

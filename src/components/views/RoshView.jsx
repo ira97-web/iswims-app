@@ -69,7 +69,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   }
 
   function toggleSelectWaste(id_sisa, isApproved) {
-    if (isApproved) return; // Sekat jika telah disahkan ROSH
+    if (isApproved) return;
     if (selectedWasteIds.includes(id_sisa)) {
       setSelectedWasteIds(selectedWasteIds.filter((id) => id !== id_sisa));
     } else {
@@ -158,7 +158,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   }
 
   // ------------------------------------------
-  // LOGIK MODUL 2: INVENTORI (100% DINAMIK)
+  // LOGIK MODUL 2: INVENTORI
   // ------------------------------------------
   const swGroupMap = {};
   allWasteRecords.forEach((r) => {
@@ -228,7 +228,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   }
 
   // ------------------------------------------
-  // LOGIK MODUL 3: DATA BT LUPUS (SEJARAH DINAMIK)
+  // LOGIK MODUL 3: DATA BT LUPUS (SEJARAH)
   // ------------------------------------------
   const disposedRecords = allWasteRecords.filter((r) => ['DILUPUSKAN', 'SELESAI', 'DISAHKAN_OLEH_ROSH_UKM'].includes((r.status || '').toUpperCase()));
   const displayDisposedRecords = disposedRecords.length > 0 ? disposedRecords : allWasteRecords;
@@ -238,7 +238,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   const totalEstimatedCost = (displayDisposedRecords.length * 204.32).toFixed(2);
 
   // ------------------------------------------
-  // LOGIK MODUL 4: PAPARAN VISUAL (100% DINAMIK)
+  // LOGIK MODUL 4: PAPARAN VISUAL
   // ------------------------------------------
   const months = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
   const monthlyKg = Array(12).fill(0);
@@ -417,7 +417,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
       )}
 
       {/* ========================================================================= */}
-      {/* MODUL 2: INVENTORI (STOR PELUPUSAN UKM) - DINAMIK */}
+      {/* MODUL 2: INVENTORI (STOR PELUPUSAN UKM) */}
       {/* ========================================================================= */}
       {activeSubTab === 'INVENTORI' && (
         <div>
@@ -436,7 +436,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               </button>
             </div>
 
-            {/* 4 STAT KAD INVENTORI DINAMIK */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
               <div style={{ backgroundColor: '#0d6efd', color: '#fff', padding: '16px', borderRadius: '10px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>Kapasiti Semasa</div>
@@ -460,7 +459,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* TABLE 1: LAPORAN PEMBUNGKUSAN DINAMIK */}
           <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '20px', border: '1px solid #cbd5e1' }}>
             <h4 style={{ margin: '0 0 15px 0', fontSize: '15px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>🚚</span> Laporan Pembungkusan Sisa Kimia (Pelupusan Kualiti Alam)
@@ -501,7 +499,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* TABLE 2: KANDUNGAN TERPERINCI SISA DINAMIK */}
           <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid #cbd5e1' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '15px' }}>
               <h4 style={{ margin: 0, fontSize: '15px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -657,7 +654,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
       )}
 
       {/* ========================================================================= */}
-      {/* MODUL 3: DATA BT LUPUS (SEJARAH PELUPUSAN) - DINAMIK */}
+      {/* MODUL 3: DATA BT LUPUS (SEJARAH PELUPUSAN) */}
       {/* ========================================================================= */}
       {activeSubTab === 'SEJARAH' && (
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid #cbd5e1' }}>
@@ -732,7 +729,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
       )}
 
       {/* ========================================================================= */}
-      {/* MODUL 4: PAPARAN VISUAL EKSEKUTIF (ROSH) - DINAMIK SEPENUHNYA */}
+      {/* MODUL 4: PAPARAN VISUAL EKSEKUTIF (ROSH) */}
       {/* ========================================================================= */}
       {activeSubTab === 'VISUAL' && (
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid #cbd5e1' }}>
@@ -755,7 +752,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* 4 KAD KPI DINAMIK */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '25px' }}>
             <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '40px', height: '40px', backgroundColor: '#2563eb', color: '#fff', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '18px' }}>🎒</div>
@@ -790,7 +786,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* VISUAL GRAF DINAMIK */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '25px' }}>
             <div style={{ backgroundColor: '#fafafa', border: '1px solid #f1f5f9', padding: '16px', borderRadius: '10px' }}>
               <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: '#334155' }}>📈 Trend Penjanaan Sisa UKM (Kg)</h4>
@@ -821,7 +816,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
 
             <div style={{ backgroundColor: '#fafafa', border: '1px solid #f1f5f9', padding: '16px', borderRadius: '10px' }}>
-              <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: '#334155' }}>🍕 Pecahan Mengikut Kod SW</h4>
+              <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: '#334155' }}>🧪 Pecahan Mengikut Kod SW</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
                 {swSorted.length === 0 ? (
                   <p style={{ color: '#94a3b8' }}>Tiada data Kod SW.</p>

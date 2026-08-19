@@ -29,9 +29,17 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
   const isPenyelarasApprover = userRole.includes('PENYELARAS');
   const userFaculty = profile?.fakulti || 'FST';
 
-  // HELPER UNTUK SEMAK STATUS PENGESAHAN PENYELARAS BT
-  const isApprovedByPenyelarasStatus = (status) =>
-    ['DISAHKAN_OLEH_PENYELARAS', 'DISAHKAN_PENYELARAS', 'DISAHKAN_ROSH', 'DISAHKAN_OLEH_ROSH_UKM', 'DILUPUSKAN', 'SELESAI'].includes((status || '').toUpperCase());
+  // HELPER UNTUK SEMAK SAMA ADA REKOD TELAH DISAHKAN OLEH PENYELARAS BT / ROSH
+  const isApprovedByPenyelarasStatus = (status) => {
+    if (!status) return false;
+    const upper = status.toString().toUpperCase();
+    return (
+      upper.includes('PENYELARAS') ||
+      upper.includes('ROSH') ||
+      upper.includes('LUPUS') ||
+      upper.includes('SELESAI')
+    );
+  };
 
   // 1. TAPISAN KETAT FAKULTI: HANYA PAPAR DATA FAKULTI PENYELARAS BT SAHAJA
   const strictFacultyRecords = facultyWasteRecords.filter((r) => {
@@ -64,7 +72,7 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
   const tableTarikhOptions = [...new Set(strictFacultyRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
   const tableBangunanOptions = [...new Set(strictFacultyRecords.map((r) => r.bangunan).filter(Boolean))];
 
-  // LOGIK TANDAKAN REKOD JADUAL PENYELARAS
+  // LOGIK TANDAKAN REKOD JADUAL PENYELARAS (DISABIKAN JIKA TELAH DISAHKAN)
   function toggleSelectTableWaste(id_sisa, isApproved) {
     if (!isPenyelarasApprover || isApproved) return;
     if (selectedTableIds.includes(id_sisa)) {
@@ -613,12 +621,12 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
                   const isChecked = selectedTableIds.includes(item.id_sisa);
 
                   return (
-                    <tr key={item.id || item.id_sisa || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked ? '#f0f7ff' : isApproved ? '#fafafa' : '#fff' }}>
+                    <tr key={item.id || item.id_sisa || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked && !isApproved ? '#f0f7ff' : isApproved ? '#fafafa' : '#fff' }}>
                       {isPenyelarasApprover && (
                         <td style={{ ...styles.td, textAlign: 'center' }}>
                           <input
                             type="checkbox"
-                            checked={isChecked}
+                            checked={isChecked && !isApproved}
                             disabled={isApproved}
                             onChange={() => toggleSelectTableWaste(item.id_sisa, isApproved)}
                             title={isApproved ? "Rekod ini telah disahkan" : "Tandakan untuk pengesahan"}

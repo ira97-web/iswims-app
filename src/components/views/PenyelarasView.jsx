@@ -514,7 +514,7 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
               </div>
 
               <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🍕 Kategori Makmal</h4>
+                <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🧪 Kategori Makmal</h4>
                 {Object.keys(catMap).length === 0 ? (
                   <p style={{ fontSize: '12px', color: '#94a3b8' }}>Tiada data kategori makmal.</p>
                 ) : (

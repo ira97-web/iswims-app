@@ -180,7 +180,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
         </div>
 
         {/* PENAPIS PTJ & KOD SW */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', alignItems: 'end', marginBottom: '15px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', alignItems: 'end', marginBottom: '15px' }}>
           <div>
             <label style={roshLabelStyle}>Tapis PTj / Fakulti</label>
             <select value={filterPtj} onChange={(e) => setFilterPtj(e.target.value)} style={roshSelectStyle}>
@@ -199,29 +199,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
                 <option key={sw} value={sw}>{sw}</option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <button
-              onClick={resetAcceptanceFilters}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                backgroundColor: '#f1f5f9',
-                color: '#475569',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>🔒</span> Reset Filter
-            </button>
           </div>
         </div>
 
@@ -418,7 +395,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   );
 }
 
-// DRUM / ROSH FILTER STYLING HELPERS
+// STYLING HELPERS
 const roshLabelStyle = {
   display: 'block',
   fontSize: '11px',

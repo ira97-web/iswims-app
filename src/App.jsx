@@ -28,6 +28,13 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  
+  // STATE MODAL SET SEMULA KATA LALUAN
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [publicModal, setPublicModal] = useState(null);
   const [activeTab, setActiveTab] = useState('HUB');
@@ -62,8 +69,12 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // PENGESANAN ACARA PASSWORD_RECOVERY
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsResettingPassword(true);
+      }
       if (session) {
         fetchProfile(session.user.id);
         fetchAllWasteRecords();
@@ -94,7 +105,6 @@ export default function App() {
     }
   }
 
-  // ENRICHED FETCH FUNCTION: PEMETAAN DATA PROFIL PENJANA SISA & JKKP
   async function fetchAllWasteRecords() {
     const { data: records, error: wasteError } = await supabase
       .from('rekod_sisa')
@@ -257,7 +267,6 @@ export default function App() {
     printWindow.document.close();
   }
 
-  // LOGIK HIERARKI PERANAN PENGGUNA
   const roleHierarchy = { Penjana: 1, JKKP: 2, Penyelaras: 3, ROSH: 4 };
   function hasAccess(targetRole) {
     const userRoleStr = profile?.role || profile?.peranan || 'Penjana';
@@ -279,6 +288,53 @@ export default function App() {
     else if (data?.session) {
       await fetchProfile(data.session.user.id);
       await fetchAllWasteRecords();
+    }
+    setLoading(false);
+  }
+
+  async function handleForgotPassword(e) {
+    e.preventDefault();
+    if (!email) {
+      alert('Sila masukkan e-mel rasmi UKM anda.');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase(), {
+      redirectTo: window.location.origin
+    });
+
+    if (error) {
+      alert('Gagal menghantar e-mel set semula kata laluan: ' + error.message);
+    } else {
+      alert(`Pautan set semula kata laluan telah dihantar ke e-mel ${email}.\n\nSila semak kotak masuk (inbox) atau folder spam anda.`);
+      setIsForgotPassword(false);
+    }
+    setLoading(false);
+  }
+
+  // FUNGSI SIMPAN KATA LALUAN BAHARU
+  async function handleUpdatePassword(e) {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      alert('Kata laluan dan pengesahan kata laluan tidak padan!');
+      return;
+    }
+    if (newPassword.length < 6) {
+      alert('Kata laluan hendaklah sekurang-kurangnya 6 aksara.');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      alert('Gagal mengemaskini kata laluan: ' + error.message);
+    } else {
+      alert('Kata laluan anda berjaya dikemaskini! Sila log masuk semula dengan kata laluan baharu.');
+      setIsResettingPassword(false);
+      setNewPassword('');
+      setConfirmNewPassword('');
+      await supabase.auth.signOut();
     }
     setLoading(false);
   }
@@ -394,6 +450,51 @@ export default function App() {
         </nav>
       )}
 
+      {/* MODAL POPUP SET SEMULA KATA LALUAN BAHARU */}
+      {isResettingPassword && (
+        <div style={modalOverlayStyle}>
+          <div style={modalCardStyle}>
+            <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+              <img src="/iswims-logo.png" alt="i-SWIMS Logo" style={{ height: '90px' }} />
+              <h3 style={{ margin: '10px 0 0 0', color: '#0f172a' }}>🔑 Cipta Kata Laluan Baharu</h3>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>
+                Sila masukkan kata laluan baharu untuk akaun anda.
+              </p>
+            </div>
+
+            <form onSubmit={handleUpdatePassword} style={styles.form}>
+              <div>
+                <label style={styles.label}>Kata Laluan Baharu</label>
+                <input
+                  type="password"
+                  placeholder="Masukkan kata laluan baharu"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  style={styles.input}
+                />
+              </div>
+
+              <div>
+                <label style={styles.label}>Sahkan Kata Laluan Baharu</label>
+                <input
+                  type="password"
+                  placeholder="Sahkan kata laluan baharu"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  required
+                  style={styles.input}
+                />
+              </div>
+
+              <button type="submit" disabled={loading} style={{ ...styles.button, backgroundColor: '#28a745', marginTop: '10px' }}>
+                {loading ? 'Menyimpan...' : 'Simpan Kata Laluan Baharu'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* SUB-VIEW HEADER */}
       {session && activeTab !== 'HUB' && (
         <header style={styles.headerBar}>
@@ -450,7 +551,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* ROLE 1: PENJANA SISA FIELDS */}
             {activeRole === 'Penjana' && (
               <>
                 <div style={styles.gridTwo}>
@@ -519,7 +619,6 @@ export default function App() {
               </>
             )}
 
-            {/* ROLE 2: JKKP BANGUNAN FIELDS */}
             {activeRole === 'JKKP' && (
               <div style={styles.gridTwo}>
                 <div>
@@ -548,7 +647,6 @@ export default function App() {
               </div>
             )}
 
-            {/* ROLE 3: PENYELARAS BT FIELDS */}
             {activeRole === 'Penyelaras' && (
               <div style={styles.gridTwo}>
                 <div>
@@ -570,7 +668,6 @@ export default function App() {
               </div>
             )}
 
-            {/* ROLE 4: ROSH UKM FIELDS */}
             {activeRole === 'ROSH' && (
               <div style={styles.gridTwo}>
                 <div>
@@ -585,7 +682,6 @@ export default function App() {
               </div>
             )}
 
-            {/* DIGITAL SIGNATURE UPLOAD FIELD */}
             <div style={{ backgroundColor: '#eef2f5', padding: '12px', borderRadius: '6px', border: '1px solid #ced4da', marginTop: '10px' }}>
               <label style={styles.label}>🖋️ Muat Naik Tandatangan Digital (PNG / JPG, Bawah 1MB)</label>
               <input type="file" accept="image/png, image/jpeg, image/jpg" onChange={handleSignatureUpload} style={styles.input} />
@@ -604,18 +700,51 @@ export default function App() {
         </div>
       )}
 
-      {/* LOGIN & STREAMLINED REGISTRATION FORM */}
+      {/* LOGIN, REGISTER & FORGOT PASSWORD CARD */}
       {!session ? (
         <div style={styles.loginCard}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <img src="/iswims-logo.png" alt="i-SWIMS Logo" style={{ height: '110px' }} />
             <h3 style={{ margin: '10px 0 0 0', color: '#0f172a' }}>
-              {isRegistering ? 'Daftar Akaun Baru' : 'Log Masuk i-SWIMS'}
+              {isForgotPassword
+                ? 'Lupa Kata Laluan'
+                : isRegistering
+                ? 'Daftar Akaun Baru'
+                : 'Log Masuk i-SWIMS'}
             </h3>
           </div>
 
-          <form onSubmit={isRegistering ? handleRegister : handleLogin} style={styles.form}>
-            {isRegistering ? (
+          <form
+            onSubmit={
+              isForgotPassword
+                ? handleForgotPassword
+                : isRegistering
+                ? handleRegister
+                : handleLogin
+            }
+            style={styles.form}
+          >
+            {isForgotPassword ? (
+              <>
+                <p style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', margin: '0 0 10px 0' }}>
+                  Masukkan e-mel rasmi UKM anda. Pautan untuk menetapkan semula kata laluan akan dihantar ke peti masuk anda.
+                </p>
+                <div>
+                  <label style={styles.label}>E-mel Rasmi UKM</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. user@ukm.edu.my"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
+                    required
+                    style={{ ...styles.input, textTransform: 'lowercase' }}
+                  />
+                </div>
+                <button type="submit" disabled={loading} style={{ ...styles.button, backgroundColor: '#0056b3' }}>
+                  {loading ? 'Memproses...' : 'Hantar Pautan Set Semula Kata Laluan'}
+                </button>
+              </>
+            ) : isRegistering ? (
               <>
                 <div>
                   <label style={styles.label}>1. Pilih Peranan Pengguna</label>
@@ -663,6 +792,9 @@ export default function App() {
                     style={styles.input}
                   />
                 </div>
+                <button type="submit" disabled={loading} style={styles.button}>
+                  {loading ? 'Memproses...' : 'Daftar Akaun'}
+                </button>
               </>
             ) : (
               <>
@@ -682,26 +814,60 @@ export default function App() {
                   required
                   style={styles.input}
                 />
+
+                <div style={{ textAlign: 'right', marginTop: '-6px', marginBottom: '8px' }}>
+                  <span
+                    onClick={() => {
+                      setIsForgotPassword(true);
+                      setIsRegistering(false);
+                    }}
+                    style={{ ...styles.link, fontSize: '12px', fontWeight: 'bold' }}
+                  >
+                    Lupa Kata Laluan?
+                  </span>
+                </div>
+
+                <button type="submit" disabled={loading} style={styles.button}>
+                  {loading ? 'Memproses...' : 'Log Masuk'}
+                </button>
               </>
             )}
-
-            <button type="submit" disabled={loading} style={styles.button}>
-              {loading ? 'Memproses...' : isRegistering ? 'Daftar Akaun' : 'Log Masuk'}
-            </button>
           </form>
 
           <p style={{ marginTop: '15px', textAlign: 'center', fontSize: '13px' }}>
-            {isRegistering ? 'Sudah ada akaun?' : 'Belum ada akaun?'}{' '}
-            <span 
-              onClick={() => {
-                setIsRegistering(!isRegistering);
-                setPassword('');
-                setConfirmPassword('');
-              }} 
-              style={styles.link}
-            >
-              {isRegistering ? 'Log Masuk di sini' : 'Daftar Akaun Baru'}
-            </span>
+            {isForgotPassword ? (
+              <span
+                onClick={() => setIsForgotPassword(false)}
+                style={styles.link}
+              >
+                ← Kembali ke Log Masuk
+              </span>
+            ) : isRegistering ? (
+              <>
+                Sudah ada akaun?{' '}
+                <span
+                  onClick={() => setIsRegistering(false)}
+                  style={styles.link}
+                >
+                  Log Masuk di sini
+                </span>
+              </>
+            ) : (
+              <>
+                Belum ada akaun?{' '}
+                <span
+                  onClick={() => {
+                    setIsRegistering(true);
+                    setIsForgotPassword(false);
+                    setPassword('');
+                    setConfirmPassword('');
+                  }}
+                  style={styles.link}
+                >
+                  Daftar Akaun Baru
+                </span>
+              </>
+            )}
           </p>
         </div>
       ) : (
@@ -736,3 +902,26 @@ export default function App() {
     </div>
   );
 }
+
+// HELPER STYLES UNTUK MODAL RECOVERY
+const modalOverlayStyle = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 9999
+};
+
+const modalCardStyle = {
+  backgroundColor: '#ffffff',
+  padding: '30px',
+  borderRadius: '12px',
+  maxWidth: '400px',
+  width: '90%',
+  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+};

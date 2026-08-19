@@ -22,21 +22,32 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   const [selectedYear, setSelectedYear] = useState('2026');
 
   // ==========================================
+  // HELPER PENGESAHAN STATUS ROSH UKM
+  // ==========================================
+  const isRoshApprovedStatus = (status) => {
+    if (!status) return false;
+    const upper = status.toString().toUpperCase();
+    return (
+      upper.includes('STOR') ||
+      upper.includes('ROSH') ||
+      upper.includes('LUPUS') ||
+      upper.includes('SELESAI')
+    );
+  };
+
+  // ==========================================
   // 1. PENGIRAAN DINAMIK DARIPADA allWasteRecords
   // ==========================================
   const getRecordWeightKg = (r) => (r.kilogram_kimia || 0) + (r.lain_lain_kg || 0) + (r.peralatan_kaca_kg || 0);
 
   const totalWeightKg = calculateTotalWeightKg(allWasteRecords);
 
-  // Sisa paling lama (Hari)
   const maxStorageDays = allWasteRecords.length > 0
     ? Math.max(...allWasteRecords.map((r) => calculateStorageDays(r.created_at || r.tarikh_pelupusan)))
     : 0;
 
-  // Unik Kod SW
   const uniqueSwCodes = [...new Set(allWasteRecords.map((r) => r.kod_sw).filter(Boolean))];
 
-  // PTJ Penjana Aktif
   const ptjList = [...new Set(allWasteRecords.map((r) => r.fakulti || r.bangunan).filter(Boolean))];
 
   // ------------------------------------------
@@ -48,13 +59,17 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
     return true;
   });
 
+  // REKOD BUNGKUSAN YANG BELUM DITERIMA ROSH
+  const tickableAcceptanceRecords = filteredAcceptanceRecords.filter((r) => !isRoshApprovedStatus(r.status));
+
   function resetAcceptanceFilters() {
     setFilterPtj('');
     setFilterSw('');
     setSelectedWasteIds([]);
   }
 
-  function toggleSelectWaste(id_sisa) {
+  function toggleSelectWaste(id_sisa, isApproved) {
+    if (isApproved) return; // Sekat jika telah disahkan ROSH
     if (selectedWasteIds.includes(id_sisa)) {
       setSelectedWasteIds(selectedWasteIds.filter((id) => id !== id_sisa));
     } else {
@@ -63,35 +78,45 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   }
 
   function toggleSelectAllAcceptance() {
-    if (selectedWasteIds.length === filteredAcceptanceRecords.length && filteredAcceptanceRecords.length > 0) {
-      setSelectedWasteIds([]);
+    const tickableIds = tickableAcceptanceRecords.map((r) => r.id_sisa);
+    const allSelected = tickableIds.length > 0 && tickableIds.every((id) => selectedWasteIds.includes(id));
+
+    if (allSelected) {
+      setSelectedWasteIds(selectedWasteIds.filter((id) => !tickableIds.includes(id)));
     } else {
-      setSelectedWasteIds(filteredAcceptanceRecords.map((r) => r.id_sisa));
+      setSelectedWasteIds([...new Set([...selectedWasteIds, ...tickableIds])]);
     }
   }
 
   async function handleBatchAcceptCentralStore() {
-    if (selectedWasteIds.length === 0) {
-      alert('Sila pilih sekurang-kurangnya satu rekod sisa.');
+    const tickableSelected = filteredAcceptanceRecords.filter(
+      (r) => selectedWasteIds.includes(r.id_sisa) && !isRoshApprovedStatus(r.status)
+    );
+
+    if (tickableSelected.length === 0) {
+      alert('Sila pilih sekurang-kurangnya satu rekod sisa yang belum diterima.');
       return;
     }
-    const confirmAccept = window.confirm(`Sahkan penerimaan ${selectedWasteIds.length} sisa ke Stor Pusat ROSH UKM?`);
+
+    const confirmAccept = window.confirm(`Sahkan penerimaan ${tickableSelected.length} sisa ke Stor Pusat ROSH UKM?`);
     if (!confirmAccept) return;
 
     setLoading(true);
     try {
+      const idsToAccept = tickableSelected.map((r) => r.id_sisa);
       const { error } = await supabase
         .from('rekod_sisa')
         .update({
           status: 'STOR_PENGUMPULAN_BERPUSAT',
           catatan_semakan: 'Diterima & Disahkan Fizikal di Stor Pelupusan Pusat ROSH UKM'
         })
-        .in('id_sisa', selectedWasteIds);
+        .in('id_sisa', idsToAccept);
 
       if (error) throw error;
-      alert(`Berjaya mengesahkan ${selectedWasteIds.length} sisa ke Stor Pusat ROSH!`);
+
+      alert(`Berjaya mengesahkan ${idsToAccept.length} sisa ke Stor Pusat ROSH!`);
       setSelectedWasteIds([]);
-      if (typeof handleVerifyStatus === 'function') handleVerifyStatus(selectedWasteIds[0], 'STOR_PENGUMPULAN_BERPUSAT');
+      if (typeof handleVerifyStatus === 'function') handleVerifyStatus(idsToAccept[0], 'STOR_PENGUMPULAN_BERPUSAT');
     } catch (err) {
       alert('Ralat penerimaan: ' + err.message);
     } finally {
@@ -100,24 +125,31 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   }
 
   async function handleBatchSpecialDisposal() {
-    if (selectedWasteIds.length === 0) {
+    const tickableSelected = filteredAcceptanceRecords.filter(
+      (r) => selectedWasteIds.includes(r.id_sisa) && !isRoshApprovedStatus(r.status)
+    );
+
+    if (tickableSelected.length === 0) {
       alert('Sila pilih sekurang-kurangnya satu rekod sisa.');
       return;
     }
+
     const reason = prompt('Masukkan alasan Pelupusan Khas / Pengembalian sisa ke Penjana:');
     if (!reason) return;
 
     setLoading(true);
     try {
+      const idsToReject = tickableSelected.map((r) => r.id_sisa);
       const { error } = await supabase
         .from('rekod_sisa')
         .update({ status: 'DIKEMBALIKAN_KE_PENJANA', catatan_semakan: reason })
-        .in('id_sisa', selectedWasteIds);
+        .in('id_sisa', idsToReject);
 
       if (error) throw error;
-      alert(`${selectedWasteIds.length} rekod sisa terpilih dikembalikan kepada Penjana.`);
+
+      alert(`${idsToReject.length} rekod sisa terpilih dikembalikan kepada Penjana.`);
       setSelectedWasteIds([]);
-      if (typeof handleVerifyStatus === 'function') handleVerifyStatus(selectedWasteIds[0], 'DIKEMBALIKAN_KE_PENJANA');
+      if (typeof handleVerifyStatus === 'function') handleVerifyStatus(idsToReject[0], 'DIKEMBALIKAN_KE_PENJANA');
     } catch (err) {
       alert('Ralat penolakan sisa: ' + err.message);
     } finally {
@@ -128,7 +160,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   // ------------------------------------------
   // LOGIK MODUL 2: INVENTORI (100% DINAMIK)
   // ------------------------------------------
-  // Agregasi Laporan Pembungkusan mengikut Kod SW
   const swGroupMap = {};
   allWasteRecords.forEach((r) => {
     const sw = r.kod_sw || 'SW 409';
@@ -185,6 +216,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
         .in('id_sisa', inventorySelectedIds);
 
       if (error) throw error;
+
       alert(`Berjaya melupuskan ${inventorySelectedIds.length} rekod sisa!`);
       setInventorySelectedIds([]);
       if (typeof handleVerifyStatus === 'function') handleVerifyStatus(inventorySelectedIds[0], 'DILUPUSKAN');
@@ -208,7 +240,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   // ------------------------------------------
   // LOGIK MODUL 4: PAPARAN VISUAL (100% DINAMIK)
   // ------------------------------------------
-  // A. Trend Penjanaan Sisa UKM Bulanan
   const months = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
   const monthlyKg = Array(12).fill(0);
   allWasteRecords.forEach((r) => {
@@ -219,7 +250,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   });
   const maxMonthlyKg = Math.max(...monthlyKg, 10);
 
-  // B. Pecahan Mengikut Kod SW
   const swWeightMap = {};
   allWasteRecords.forEach((r) => {
     const sw = r.kod_sw || 'SW409';
@@ -228,7 +258,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   const swSorted = Object.entries(swWeightMap).sort((a, b) => b[1] - a[1]);
   const dominantSw = swSorted[0]?.[0] || '-';
 
-  // C. Perbandingan Mengikut PTJ
   const ptjWeightMap = {};
   allWasteRecords.forEach((r) => {
     const ptjName = r.fakulti || r.bangunan || 'FST';
@@ -236,6 +265,8 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   });
   const ptjSorted = Object.entries(ptjWeightMap).sort((a, b) => b[1] - a[1]);
   const maxPtjKg = Math.max(...Object.values(ptjWeightMap), 10);
+
+  const allTickableAcceptanceSelected = tickableAcceptanceRecords.length > 0 && tickableAcceptanceRecords.every((r) => selectedWasteIds.includes(r.id_sisa));
 
   return (
     <div>
@@ -307,7 +338,14 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc' }}>
                   <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
-                    <input type="checkbox" checked={filteredAcceptanceRecords.length > 0 && selectedWasteIds.length === filteredAcceptanceRecords.length} onChange={toggleSelectAllAcceptance} />
+                    <input
+                      type="checkbox"
+                      checked={allTickableAcceptanceSelected}
+                      onChange={toggleSelectAllAcceptance}
+                      disabled={tickableAcceptanceRecords.length === 0}
+                      title={tickableAcceptanceRecords.length === 0 ? "Tiada sisa sedia untuk diterima" : "Pilih Semua Sisa Belum Diterima"}
+                      style={{ cursor: tickableAcceptanceRecords.length === 0 ? 'not-allowed' : 'pointer' }}
+                    />
                   </th>
                   <th style={styles.th}>ID Sisa & Tarikh</th>
                   <th style={styles.th}>Maklumat Sisa</th>
@@ -320,12 +358,20 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
                   <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Tiada rekod sisa ditemui.</td></tr>
                 ) : (
                   filteredAcceptanceRecords.map((item) => {
+                    const isApproved = isRoshApprovedStatus(item.status);
                     const isChecked = selectedWasteIds.includes(item.id_sisa);
-                    const isCentralStored = item.status === 'STOR_PENGUMPULAN_BERPUSAT';
+
                     return (
-                      <tr key={item.id || item.id_sisa} style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: isChecked ? '#f0f7ff' : '#ffffff' }}>
+                      <tr key={item.id || item.id_sisa} style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: isChecked && !isApproved ? '#f0f7ff' : isApproved ? '#fafafa' : '#ffffff' }}>
                         <td style={{ ...styles.td, textAlign: 'center' }}>
-                          <input type="checkbox" checked={isChecked} onChange={() => toggleSelectWaste(item.id_sisa)} />
+                          <input
+                            type="checkbox"
+                            checked={isChecked && !isApproved}
+                            disabled={isApproved}
+                            onChange={() => toggleSelectWaste(item.id_sisa, isApproved)}
+                            title={isApproved ? "Sisa ini telah diterima / disahkan ke Stor Pelupusan UKM" : "Tandakan untuk penerimaan stor"}
+                            style={{ cursor: isApproved ? 'not-allowed' : 'pointer' }}
+                          />
                         </td>
                         <td style={styles.td}>
                           <div style={{ fontWeight: 'bold', color: '#0f172a' }}>{item.id_sisa}</div>
@@ -340,7 +386,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
                           <div style={{ fontSize: '11px', color: '#64748b' }}>{item.nama_makmal || '-'}</div>
                         </td>
                         <td style={{ ...styles.td, textAlign: 'center' }}>
-                          {isCentralStored ? (
+                          {isApproved ? (
                             <span style={greenBadgeStyle}>🔒 Stor Pelupusan UKM</span>
                           ) : (
                             <span style={getStatusBadgeStyle(item.status)}>{item.status}</span>
@@ -356,7 +402,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
 
           <div style={bottomActionBarStyle}>
             <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#0f172a' }}>
-              <span style={{ color: '#2563eb' }}>{selectedWasteIds.length}</span> sisa dipilih untuk masuk stor
+              📌 Terpilih: <span style={{ color: '#2563eb' }}>{selectedWasteIds.length}</span> daripada {tickableAcceptanceRecords.length} sisa yang sedia untuk diterima
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={handleBatchSpecialDisposal} disabled={loading || selectedWasteIds.length === 0} style={btnDangerStyle}>
@@ -746,7 +792,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
 
           {/* VISUAL GRAF DINAMIK */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '25px' }}>
-            {/* GRAF 1: TREND PENJANAAN SISA UKM BULANAN DINAMIK */}
             <div style={{ backgroundColor: '#fafafa', border: '1px solid #f1f5f9', padding: '16px', borderRadius: '10px' }}>
               <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: '#334155' }}>📈 Trend Penjanaan Sisa UKM (Kg)</h4>
               <div style={{ display: 'flex', alignItems: 'flex-end', height: '180px', gap: '8px', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px' }}>
@@ -775,7 +820,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               </div>
             </div>
 
-            {/* GRAF 2: PECAHAN KOD SW DINAMIK */}
             <div style={{ backgroundColor: '#fafafa', border: '1px solid #f1f5f9', padding: '16px', borderRadius: '10px' }}>
               <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: '#334155' }}>🍕 Pecahan Mengikut Kod SW</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
@@ -800,7 +844,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* GRAF 3: PERBANDINGAN PTJ DINAMIK */}
           <div style={{ backgroundColor: '#fafafa', border: '1px solid #f1f5f9', padding: '16px', borderRadius: '10px' }}>
             <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: '#334155' }}>🏢 Perbandingan Penjanaan Sisa Mengikut PTJ (Kg)</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

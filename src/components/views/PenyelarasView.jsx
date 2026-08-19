@@ -1,9 +1,22 @@
 import React, { useState } from 'react';
-import { calculateDrumsNeeded, calculateStorageDays, calculateTotalWeightKg, getQuantityText, getStatusBadgeStyle } from '../../utils/helpers';
+import { calculateDrumsNeeded, calculateStorageDays, calculateTotalWeightKg, getQuantityText, getStatusBadgeStyle, formatMalayDate } from '../../utils/helpers';
 import { styles } from '../../styles/styles';
+
+const ALL_SW_CODES = [
+  'SW109', 'SW206', 'SW301', 'SW305', 'SW320', 'SW322', 'SW323',
+  'SW402', 'SW405', 'SW409', 'SW410', 'SW421', 'SW422', 'SW430'
+];
 
 export default function PenyelarasView({ profile, facultyWasteRecords = [], handleVerifyStatus, setActiveTab }) {
   const [showVisuals, setShowVisuals] = useState(false);
+  const [showDrumCalc, setShowDrumCalc] = useState(false);
+
+  // DRUM CALCULATION FILTER STATES
+  const [drumTarikh, setDrumTarikh] = useState('');
+  const [drumFakulti, setDrumFakulti] = useState('');
+  const [drumKategori, setDrumKategori] = useState('');
+  const [drumLokasi, setDrumLokasi] = useState('');
+  const [drumBangunan, setDrumBangunan] = useState('');
 
   // SEMAK PERANAN PENGGUNA (PENYELARAS BT VS LAIN-LAIN)
   const userRole = (profile?.role || profile?.peranan || 'Penyelaras').toString().toUpperCase();
@@ -20,8 +33,54 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
 
   const warningStatusCount = facultyWasteRecords.filter((r) => calculateStorageDays(r.created_at || r.tarikh_pelupusan) > 120).length;
 
-  // 2. AGREGASI DATA UNTUK GRAF VISUAL
-  // A. Trend Penjanaan Sisa Bulanan (Jan - Dis)
+  // 2. LOGIK PENAPISAN PENGIRAAN DRUM
+  const drumFilteredRecords = facultyWasteRecords.filter((r) => {
+    if (drumTarikh && r.tarikh_pelupusan !== drumTarikh) return false;
+    if (drumFakulti && r.fakulti !== drumFakulti) return false;
+    if (drumKategori && r.kategori_makmal !== drumKategori) return false;
+    if (drumLokasi && r.tapak_pengumpulan !== drumLokasi) return false;
+    if (drumBangunan && r.bangunan !== drumBangunan) return false;
+    return true;
+  });
+
+  // OPTION LISTS FOR DRUM FILTERS
+  const tarikhOpt = [...new Set(facultyWasteRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
+  const fakultiOpt = [...new Set(facultyWasteRecords.map((r) => r.fakulti).filter(Boolean))];
+  const katOpt = [...new Set(facultyWasteRecords.map((r) => r.kategori_makmal).filter(Boolean))];
+  const lokasiOpt = [...new Set(facultyWasteRecords.map((r) => r.tapak_pengumpulan).filter(Boolean))];
+  const bngOpt = [...new Set(facultyWasteRecords.map((r) => r.bangunan).filter(Boolean))];
+
+  function resetDrumFilters() {
+    setDrumTarikh('');
+    setDrumFakulti('');
+    setDrumKategori('');
+    setDrumLokasi('');
+    setDrumBangunan('');
+  }
+
+  // 3. AGREGASI DATA MENGIKUT KOD SW UNTUK PENGIRAAN DRUM
+  const swCodeList = [...new Set([...ALL_SW_CODES, ...drumFilteredRecords.map((r) => r.kod_sw).filter(Boolean)])].sort();
+
+  let totalGrandDrums = 0;
+  const swDrumTableData = swCodeList.map((code) => {
+    const recordsForCode = drumFilteredRecords.filter((r) => r.kod_sw === code);
+
+    const b25 = recordsForCode.reduce((sum, r) => sum + (r.botol_2_5l_kimia || 0) + (r.botol_2_5l_kosong || 0), 0);
+    const b40 = recordsForCode.reduce((sum, r) => sum + (r.botol_4_0l_kimia || 0) + (r.botol_4_0l_kosong || 0), 0);
+    const kg = recordsForCode.reduce((sum, r) => sum + (r.kilogram_kimia || 0) + (r.lain_lain_kg || 0) + (r.peralatan_kaca_kg || 0), 0);
+
+    // FORMULA PENGIRAAN DRUM
+    const d25 = b25 > 0 ? Math.ceil(b25 / 24) : 0;
+    const d40 = b40 > 0 ? Math.ceil(b40 / 16) : 0;
+    const dKg = kg > 0 ? Math.ceil(kg / 150) : 0;
+    const estDrums = d25 + d40 + dKg;
+
+    totalGrandDrums += estDrums;
+
+    return { code, b25, b40, kg, estDrums };
+  });
+
+  // 4. AGREGASI DATA UNTUK GRAF VISUAL
   const monthsList = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
   const monthlyKg = Array(12).fill(0);
   facultyWasteRecords.forEach((r) => {
@@ -34,7 +93,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
   });
   const maxMonthlyKg = Math.max(...monthlyKg, 10);
 
-  // B. Penjanaan Sisa Mengikut Kod SW (Kg)
   const swMap = {};
   facultyWasteRecords.forEach((r) => {
     const code = r.kod_sw || 'Lain-lain';
@@ -44,14 +102,12 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
   const swSorted = Object.entries(swMap).sort((a, b) => b[1] - a[1]);
   const maxSwKg = Math.max(...Object.values(swMap), 10);
 
-  // C. Pecahan Kategori Makmal
   const catMap = {};
   facultyWasteRecords.forEach((r) => {
     const cat = r.kategori_makmal || 'Tidak Dinyatakan';
     catMap[cat] = (catMap[cat] || 0) + 1;
   });
 
-  // D. Penjanaan Sisa Tertinggi Mengikut Bangunan (Kg)
   const bngMap = {};
   facultyWasteRecords.forEach((r) => {
     const bng = r.bangunan || 'Bangunan Sains Kimia';
@@ -119,8 +175,9 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
         </div>
       </div>
 
-      {/* BUTANG PAPARAN VISUAL */}
-      <div style={{ marginBottom: '20px' }}>
+      {/* TWO ACTION BUTTONS: PAPARAN VISUAL & PENGIRAAN DRUM */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+        {/* BUTTON 1: PAPARAN VISUAL */}
         <button
           onClick={() => setShowVisuals(!showVisuals)}
           style={{
@@ -143,9 +200,33 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
         >
           <span>📈</span> Paparan Visual {showVisuals ? '▲ (Sembunyi Graf Analitik)' : '▼ (Papar Graf Analitik)'}
         </button>
+
+        {/* BUTTON 2: PENGIRAAN DRUM */}
+        <button
+          onClick={() => setShowDrumCalc(!showDrumCalc)}
+          style={{
+            width: '100%',
+            padding: '14px',
+            backgroundColor: showDrumCalc ? '#d97706' : '#ffffff',
+            color: showDrumCalc ? '#ffffff' : '#d97706',
+            border: '2px solid #d97706',
+            borderRadius: '10px',
+            fontSize: '15px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '10px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span>🧮</span> Pengiraan Drum {showDrumCalc ? '▲ (Sembunyi Kapasiti Drum)' : '▼ (Papar Kapasiti Drum)'}
+        </button>
       </div>
 
-      {/* SEKSYEN GRAF ANALITIK (DAPAT DIPAPARKAN / DISEMBUNYIKAN) */}
+      {/* SEKSYEN GRAF ANALITIK */}
       {showVisuals && (
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '25px', border: '1px solid #e2e8f0' }}>
           <h3 style={{ margin: '0 0 20px 0', color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -184,7 +265,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
 
           {/* GRID UNTUK GRAF 2 & GRAF 3 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-            {/* GRAF 2: KOD SW */}
             <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
               <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>📊 Penjanaan Sisa Mengikut Kod SW (Kg)</h4>
               {swSorted.length === 0 ? (
@@ -214,7 +294,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
               )}
             </div>
 
-            {/* GRAF 3: KATEGORI MAKMAL */}
             <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
               <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🍕 Kategori Makmal</h4>
               {Object.keys(catMap).length === 0 ? (
@@ -242,7 +321,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
             </div>
           </div>
 
-          {/* GRAF 4: TINGGI MENGIKUT BANGUNAN (HORIZONTAL BARS) */}
           <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
             <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🏢 Penjanaan Sisa Tertinggi Mengikut Bangunan (Kg)</h4>
             {bngSorted.length === 0 ? (
@@ -265,6 +343,123 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* SEKSYEN PENGIRAAN KAPASITI DRUM (PENYELARAS BT) */}
+      {showDrumCalc && (
+        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '25px', border: '1px solid #cbd5e1' }}>
+          <h3 style={{ margin: '0 0 15px 0', color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🧮</span> Pengiraan Kapasiti Drum (Penyelaras BT)
+          </h3>
+
+          {/* BOX FORMULA INFO */}
+          <div style={{ backgroundColor: '#e0f2fe', border: '1px solid #bae6fd', padding: '14px 18px', borderRadius: '8px', marginBottom: '20px', fontSize: '12px', color: '#0369a1', lineHeight: '1.6' }}>
+            <strong style={{ display: 'block', fontSize: '13px', marginBottom: '4px' }}>ℹ️ Formula Pengiraan Kapasiti Drum:</strong>
+            <ul style={{ margin: 0, paddingLeft: '20px' }}>
+              <li><strong>Botol 2.5L:</strong> 1 Drum memuatkan 24 botol.</li>
+              <li><strong>Botol 4.0L:</strong> 1 Drum memuatkan 16 botol.</li>
+              <li><strong>Lain-lain Bekas / Pepejal:</strong> 1 Drum memuatkan 150 kg.</li>
+            </ul>
+          </div>
+
+          {/* FILTERS FOR DRUM CALCULATION */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '15px' }}>
+            <div>
+              <label style={drumFilterLabelStyle}>Tarikh Pelupusan</label>
+              <select value={drumTarikh} onChange={(e) => setDrumTarikh(e.target.value)} style={drumFilterSelectStyle}>
+                <option value="">Semua Tarikh</option>
+                {tarikhOpt.map((t) => <option key={t} value={t}>{formatMalayDate(t)}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={drumFilterLabelStyle}>PTJ / Fakulti</label>
+              <select value={drumFakulti} onChange={(e) => setDrumFakulti(e.target.value)} style={drumFilterSelectStyle}>
+                <option value="">Semua PTJ</option>
+                {fakultiOpt.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={drumFilterLabelStyle}>Kategori Makmal</label>
+              <select value={drumKategori} onChange={(e) => setDrumKategori(e.target.value)} style={drumFilterSelectStyle}>
+                <option value="">Semua Kategori</option>
+                {katOpt.map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={drumFilterLabelStyle}>Lokasi Pengumpulan</label>
+              <select value={drumLokasi} onChange={(e) => setDrumLokasi(e.target.value)} style={drumFilterSelectStyle}>
+                <option value="">Semua Lokasi</option>
+                {lokasiOpt.map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={drumFilterLabelStyle}>Bangunan</label>
+              <select value={drumBangunan} onChange={(e) => setDrumBangunan(e.target.value)} style={drumFilterSelectStyle}>
+                <option value="">Semua Bangunan</option>
+                {bngOpt.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* ACTION BUTTONS FOR DRUM FILTERS */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginBottom: '20px' }}>
+            <button
+              onClick={resetDrumFilters}
+              style={{ padding: '8px 16px', backgroundColor: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              🔄 Reset
+            </button>
+            <button
+              style={{ padding: '8px 18px', backgroundColor: '#f59e0b', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              🧮 Kira Anggaran Drum
+            </button>
+          </div>
+
+          {/* JADUAL KAPASITI DRUM MENGIKUT KOD SW */}
+          <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+            <table style={{ ...styles.table, margin: 0 }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc' }}>
+                  <th style={{ ...styles.th, width: '120px', textAlign: 'center' }}>Kod SW</th>
+                  <th style={{ ...styles.th, textAlign: 'center' }}>Jum. Botol 2.5L</th>
+                  <th style={{ ...styles.th, textAlign: 'center' }}>Jum. Botol 4.0L</th>
+                  <th style={{ ...styles.th, textAlign: 'center' }}>Jum. Berat (Kg)</th>
+                  <th style={{ ...styles.th, textAlign: 'center', backgroundColor: '#fef08a', color: '#854d0e', fontWeight: '800' }}>🛢️ Anggaran Drum</th>
+                </tr>
+              </thead>
+              <tbody>
+                {swDrumTableData.map((row) => (
+                  <tr key={row.code} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ ...styles.td, textAlign: 'center' }}>
+                      <span style={{ backgroundColor: '#475569', color: '#ffffff', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                        {row.code}
+                      </span>
+                    </td>
+                    <td style={{ ...styles.td, textAlign: 'center' }}>{row.b25}</td>
+                    <td style={{ ...styles.td, textAlign: 'center' }}>{row.b40}</td>
+                    <td style={{ ...styles.td, textAlign: 'center' }}>{row.kg.toFixed(2)}</td>
+                    <td style={{ ...styles.td, textAlign: 'center', backgroundColor: '#fefce8', fontWeight: 'bold', color: '#854d0e', fontSize: '14px' }}>
+                      {row.estDrums}
+                    </td>
+                  </tr>
+                ))}
+                <tr style={{ backgroundColor: '#fef08a', fontWeight: '800' }}>
+                  <td colSpan="4" style={{ ...styles.td, textAlign: 'right', paddingRight: '20px', color: '#854d0e', fontSize: '13px' }}>
+                    JUMLAH KESELURUHAN DRUM DIPERLUKAN:
+                  </td>
+                  <td style={{ ...styles.td, textAlign: 'center', color: '#854d0e', fontSize: '18px', fontWeight: '900' }}>
+                    {totalGrandDrums} 🛢️
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -352,3 +547,23 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
     </div>
   );
 }
+
+// DRUM FILTER STYLING HELPERS
+const drumFilterLabelStyle = {
+  display: 'block',
+  fontSize: '11px',
+  fontWeight: 'bold',
+  color: '#0369a1',
+  marginBottom: '4px'
+};
+
+const drumFilterSelectStyle = {
+  width: '100%',
+  padding: '8px',
+  borderRadius: '6px',
+  border: '1px solid #cbd5e1',
+  fontSize: '12px',
+  backgroundColor: '#ffffff',
+  color: '#0f172a',
+  outline: 'none'
+};

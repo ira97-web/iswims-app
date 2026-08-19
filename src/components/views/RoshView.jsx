@@ -5,36 +5,43 @@ import { styles } from '../../styles/styles';
 
 export default function RoshView({ allWasteRecords = [], profile, handleVerifyStatus, handlePrintSummaryPdf, setActiveTab }) {
   // STATE NAVIGASI 4 MODUL UTAMA
-  const [activeSubTab, setActiveSubTab] = useState('PEMBUNGKUSAN'); // 'PEMBUNGKUSAN' | 'INVENTORI' | 'SEJARAH' | 'VISUAL'
+  const [activeSubTab, setActiveSubTab] = useState('PEMBUNGKUSAN');
 
-  // ==========================================
-  // STATE MODUL 1: PEMBUNGKUSAN (PENERIMAAN)
-  // ==========================================
+  // STATE MODUL 1: PEMBUNGKUSAN
   const [filterPtj, setFilterPtj] = useState('');
   const [filterSw, setFilterSw] = useState('');
   const [selectedWasteIds, setSelectedWasteIds] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ==========================================
-  // STATE MODUL 2: INVENTORI & E-SWIS
-  // ==========================================
+  // STATE MODUL 2: INVENTORI
   const [inventorySearch, setInventorySearch] = useState('');
   const [inventorySelectedIds, setInventorySelectedIds] = useState([]);
   const [showEswisModal, setShowEswisModal] = useState(false);
 
-  // ==========================================
-  // STATE MODUL 4: PAPARAN VISUAL EKSEKUTIF
-  // ==========================================
+  // STATE MODUL 4: VISUAL
   const [selectedYear, setSelectedYear] = useState('2026');
+
+  // ==========================================
+  // 1. PENGIRAAN DINAMIK DARIPADA allWasteRecords
+  // ==========================================
+  const getRecordWeightKg = (r) => (r.kilogram_kimia || 0) + (r.lain_lain_kg || 0) + (r.peralatan_kaca_kg || 0);
 
   const totalWeightKg = calculateTotalWeightKg(allWasteRecords);
 
-  // ------------------------------------------
-  // LOGIK MODUL 1: PEMBUNGKUSAN
-  // ------------------------------------------
-  const ptjOptions = [...new Set(allWasteRecords.map((r) => r.bangunan || r.fakulti).filter(Boolean))];
-  const swOptions = [...new Set(allWasteRecords.map((r) => r.kod_sw).filter(Boolean))];
+  // Sisa paling lama (Hari)
+  const maxStorageDays = allWasteRecords.length > 0
+    ? Math.max(...allWasteRecords.map((r) => calculateStorageDays(r.created_at || r.tarikh_pelupusan)))
+    : 0;
 
+  // Unik Kod SW
+  const uniqueSwCodes = [...new Set(allWasteRecords.map((r) => r.kod_sw).filter(Boolean))];
+
+  // PTJ Penjana Aktif
+  const ptjList = [...new Set(allWasteRecords.map((r) => r.fakulti || r.bangunan).filter(Boolean))];
+
+  // ------------------------------------------
+  // LOGIK MODUL 1: PEMBUNGKUSAN (PENERIMAAN)
+  // ------------------------------------------
   const filteredAcceptanceRecords = allWasteRecords.filter((item) => {
     if (filterPtj && item.bangunan !== filterPtj && item.fakulti !== filterPtj) return false;
     if (filterSw && item.kod_sw !== filterSw) return false;
@@ -119,14 +126,11 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   }
 
   // ------------------------------------------
-  // LOGIK MODUL 2: INVENTORI
+  // LOGIK MODUL 2: INVENTORI (100% DINAMIK)
   // ------------------------------------------
-  const inventoryStoreRecords = allWasteRecords.filter((r) => r.status === 'STOR_PENGUMPULAN_BERPUSAT' || r.status === 'DISAHKAN_OLEH_ROSH_UKM');
-  const displayInventoryRecords = inventoryStoreRecords.length > 0 ? inventoryStoreRecords : allWasteRecords;
-
   // Agregasi Laporan Pembungkusan mengikut Kod SW
   const swGroupMap = {};
-  displayInventoryRecords.forEach((r) => {
+  allWasteRecords.forEach((r) => {
     const sw = r.kod_sw || 'SW 409';
     if (!swGroupMap[sw]) {
       const isSolid = ['SW409', 'SW410', 'SW103', 'SW430'].includes(sw);
@@ -134,13 +138,10 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
         code: sw,
         sifat: isSolid ? 'PEPEJAL' : 'CECAIR',
         drums: 0,
-        weight: 0,
-        items: []
+        weight: 0
       };
     }
-    const kg = (r.kilogram_kimia || 0) + (r.lain_lain_kg || 0) + (r.peralatan_kaca_kg || 0);
-    swGroupMap[sw].weight += kg;
-    swGroupMap[sw].items.push(r);
+    swGroupMap[sw].weight += getRecordWeightKg(r);
   });
 
   Object.values(swGroupMap).forEach((g) => {
@@ -149,7 +150,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
 
   const swGroupList = Object.values(swGroupMap);
 
-  const filteredInventoryDetail = displayInventoryRecords.filter((r) => {
+  const filteredInventoryDetail = allWasteRecords.filter((r) => {
     if (!inventorySearch) return true;
     const q = inventorySearch.toLowerCase();
     return (
@@ -195,7 +196,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   }
 
   // ------------------------------------------
-  // LOGIK MODUL 3: DATA BT LUPUS (SEJARAH)
+  // LOGIK MODUL 3: DATA BT LUPUS (SEJARAH DINAMIK)
   // ------------------------------------------
   const disposedRecords = allWasteRecords.filter((r) => ['DILUPUSKAN', 'SELESAI', 'DISAHKAN_OLEH_ROSH_UKM'].includes((r.status || '').toUpperCase()));
   const displayDisposedRecords = disposedRecords.length > 0 ? disposedRecords : allWasteRecords;
@@ -205,21 +206,36 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
   const totalEstimatedCost = (displayDisposedRecords.length * 204.32).toFixed(2);
 
   // ------------------------------------------
-  // LOGIK MODUL 4: PAPARAN VISUAL EKSEKUTIF
+  // LOGIK MODUL 4: PAPARAN VISUAL (100% DINAMIK)
   // ------------------------------------------
-  const activePtjs = [...new Set(allWasteRecords.map((r) => r.fakulti || r.bangunan).filter(Boolean))].length;
+  // A. Trend Penjanaan Sisa UKM Bulanan
+  const months = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+  const monthlyKg = Array(12).fill(0);
+  allWasteRecords.forEach((r) => {
+    const d = new Date(r.created_at || r.tarikh_pelupusan);
+    if (!isNaN(d)) {
+      monthlyKg[d.getMonth()] += getRecordWeightKg(r);
+    }
+  });
+  const maxMonthlyKg = Math.max(...monthlyKg, 10);
 
+  // B. Pecahan Mengikut Kod SW
   const swWeightMap = {};
   allWasteRecords.forEach((r) => {
-    const sw = r.kod_sw || 'SW322';
-    const kg = (r.kilogram_kimia || 0) + (r.lain_lain_kg || 0) + (r.peralatan_kaca_kg || 0);
-    swWeightMap[sw] = (swWeightMap[sw] || 0) + kg;
+    const sw = r.kod_sw || 'SW409';
+    swWeightMap[sw] = (swWeightMap[sw] || 0) + getRecordWeightKg(r);
   });
-  const dominantSw = Object.entries(swWeightMap).sort((a, b) => b[1] - a[1])[0]?.[0] || 'SW 322';
+  const swSorted = Object.entries(swWeightMap).sort((a, b) => b[1] - a[1]);
+  const dominantSw = swSorted[0]?.[0] || '-';
 
-  // Data Bulanan Visual
-  const months = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
-  const monthlyVisualKg = [100, 200, 800, 12200, 1000, 1200, 10300, 2500, 100, 50, 50, 50];
+  // C. Perbandingan Mengikut PTJ
+  const ptjWeightMap = {};
+  allWasteRecords.forEach((r) => {
+    const ptjName = r.fakulti || r.bangunan || 'FST';
+    ptjWeightMap[ptjName] = (ptjWeightMap[ptjName] || 0) + getRecordWeightKg(r);
+  });
+  const ptjSorted = Object.entries(ptjWeightMap).sort((a, b) => b[1] - a[1]);
+  const maxPtjKg = Math.max(...Object.values(ptjWeightMap), 10);
 
   return (
     <div>
@@ -231,31 +247,19 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
 
       {/* 4 BUTANG MODUL UTAMA */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-        <button
-          onClick={() => setActiveSubTab('PEMBUNGKUSAN')}
-          style={navSubTabStyle(activeSubTab === 'PEMBUNGKUSAN', '#2563eb')}
-        >
+        <button onClick={() => setActiveSubTab('PEMBUNGKUSAN')} style={navSubTabStyle(activeSubTab === 'PEMBUNGKUSAN', '#2563eb')}>
           <span>📦</span> Pembungkusan (Penerimaan)
         </button>
 
-        <button
-          onClick={() => setActiveSubTab('INVENTORI')}
-          style={navSubTabStyle(activeSubTab === 'INVENTORI', '#16a34a')}
-        >
+        <button onClick={() => setActiveSubTab('INVENTORI')} style={navSubTabStyle(activeSubTab === 'INVENTORI', '#16a34a')}>
           <span>🏭</span> Inventori Stor Pelupusan
         </button>
 
-        <button
-          onClick={() => setActiveSubTab('SEJARAH')}
-          style={navSubTabStyle(activeSubTab === 'SEJARAH', '#0284c7')}
-        >
+        <button onClick={() => setActiveSubTab('SEJARAH')} style={navSubTabStyle(activeSubTab === 'SEJARAH', '#0284c7')}>
           <span>📜</span> Data BT Lupus (Sejarah)
         </button>
 
-        <button
-          onClick={() => setActiveSubTab('VISUAL')}
-          style={navSubTabStyle(activeSubTab === 'VISUAL', '#9333ea')}
-        >
+        <button onClick={() => setActiveSubTab('VISUAL')} style={navSubTabStyle(activeSubTab === 'VISUAL', '#9333ea')}>
           <span>📊</span> Paparan Visual Eksekutif
         </button>
       </div>
@@ -285,7 +289,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               <label style={filterLabelStyle}>Tapis PTj / Fakulti</label>
               <select value={filterPtj} onChange={(e) => setFilterPtj(e.target.value)} style={filterSelectStyle}>
                 <option value="">Semua PTj</option>
-                {ptjOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+                {ptjList.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
 
@@ -293,7 +297,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               <label style={filterLabelStyle}>Tapis Kod SW</label>
               <select value={filterSw} onChange={(e) => setFilterSw(e.target.value)} style={filterSelectStyle}>
                 <option value="">Semua Kod SW</option>
-                {swOptions.map((sw) => <option key={sw} value={sw}>{sw}</option>)}
+                {uniqueSwCodes.map((sw) => <option key={sw} value={sw}>{sw}</option>)}
               </select>
             </div>
           </div>
@@ -367,11 +371,10 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
       )}
 
       {/* ========================================================================= */}
-      {/* MODUL 2: INVENTORI (STOR PELUPUSAN UKM) - RUJUKAN GAMBAR 1, 2 & 3 */}
+      {/* MODUL 2: INVENTORI (STOR PELUPUSAN UKM) - DINAMIK */}
       {/* ========================================================================= */}
       {activeSubTab === 'INVENTORI' && (
         <div>
-          {/* HEADER INVENTORI & 4 KAD KAPASITI */}
           <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '20px', border: '1px solid #cbd5e1' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <div>
@@ -379,7 +382,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
                   <span>🏭</span> Inventori Stor Pelupusan UKM
                 </h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
-                  Maklumat sisa yang dilupuskan oleh Kontraktor.
+                  Maklumat sisa yang dilupuskan oleh Kontraktor. Memaparkan {allWasteRecords.length} rekod sisa.
                 </p>
               </div>
               <button onClick={() => alert('Data Inventori dikemaskini!')} style={btnSecondaryStyle}>
@@ -387,7 +390,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               </button>
             </div>
 
-            {/* 4 STAT KAD INVENTORI GAMBAR 1 */}
+            {/* 4 STAT KAD INVENTORI DINAMIK */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
               <div style={{ backgroundColor: '#0d6efd', color: '#fff', padding: '16px', borderRadius: '10px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>Kapasiti Semasa</div>
@@ -401,17 +404,17 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
 
               <div style={{ backgroundColor: '#ffc107', color: '#0f172a', padding: '16px', borderRadius: '10px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>Kategori Sisa</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', margin: '4px 0' }}>{swGroupList.length} <span style={{ fontSize: '14px' }}>Kod SW</span></div>
+                <div style={{ fontSize: '28px', fontWeight: '800', margin: '4px 0' }}>{uniqueSwCodes.length} <span style={{ fontSize: '14px' }}>Kod SW</span></div>
               </div>
 
               <div style={{ backgroundColor: '#dc3545', color: '#fff', padding: '16px', borderRadius: '10px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>Sisa Paling Lama</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', margin: '4px 0' }}>75 <span style={{ fontSize: '14px' }}>Hari</span></div>
+                <div style={{ fontSize: '28px', fontWeight: '800', margin: '4px 0' }}>{maxStorageDays} <span style={{ fontSize: '14px' }}>Hari</span></div>
               </div>
             </div>
           </div>
 
-          {/* TABLE 1: LAPORAN PEMBUNGKUSAN SISA KIMIA (PELUPUSAN KUALITI ALAM) */}
+          {/* TABLE 1: LAPORAN PEMBUNGKUSAN DINAMIK */}
           <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '20px', border: '1px solid #cbd5e1' }}>
             <h4 style={{ margin: '0 0 15px 0', fontSize: '15px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>🚚</span> Laporan Pembungkusan Sisa Kimia (Pelupusan Kualiti Alam)
@@ -452,7 +455,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* TABLE 2: KANDUNGAN TERPERINCI SISA (KANDUNGAN DRUM) - GAMBAR 2 */}
+          {/* TABLE 2: KANDUNGAN TERPERINCI SISA DINAMIK */}
           <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid #cbd5e1' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '15px' }}>
               <h4 style={{ margin: 0, fontSize: '15px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -521,7 +524,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               </table>
             </div>
 
-            {/* DARK BOTTOM ACTION BAR FOR E-SWIS & DISPOSAL - GAMBAR 2 */}
             <div style={{ backgroundColor: '#1e293b', color: '#ffffff', padding: '14px 20px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
                 <span style={{ color: '#38bdf8' }}>{inventorySelectedIds.length}</span> botol/item dipilih:
@@ -552,7 +554,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* MODAL FORMAT CONSIGNMENT NOTE E-SWIS - GAMBAR 3 */}
+          {/* MODAL FORMAT CONSIGNMENT NOTE E-SWIS */}
           {showEswisModal && (
             <div style={modalOverlayStyle}>
               <div style={modalContentStyle}>
@@ -577,11 +579,11 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
                     </tr>
                   </thead>
                   <tbody>
-                    {displayInventoryRecords
+                    {allWasteRecords
                       .filter((r) => inventorySelectedIds.includes(r.id_sisa))
                       .map((r, i) => {
-                        const kg = (r.kilogram_kimia || 0) + (r.lain_lain_kg || 0) + (r.peralatan_kaca_kg || 0);
-                        const mt = (kg / 1000).toFixed(2);
+                        const kg = getRecordWeightKg(r);
+                        const mt = (kg / 1000).toFixed(4);
                         return (
                           <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
                             <td style={styles.td}><strong>{r.kod_sw}</strong></td>
@@ -609,7 +611,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
       )}
 
       {/* ========================================================================= */}
-      {/* MODUL 3: DATA BT LUPUS (SEJARAH PELUPUSAN) - RUJUKAN GAMBAR 4 */}
+      {/* MODUL 3: DATA BT LUPUS (SEJARAH PELUPUSAN) - DINAMIK */}
       {/* ========================================================================= */}
       {activeSubTab === 'SEJARAH' && (
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid #cbd5e1' }}>
@@ -627,7 +629,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </button>
           </div>
 
-          {/* 3 STAT KAD SEJARAH GAMBAR 4 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
             <div style={{ backgroundColor: '#ffffff', borderLeft: '6px solid #2563eb', padding: '16px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
               <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>JUMLAH BERAT (MT)</div>
@@ -645,7 +646,6 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* JADUAL SEJARAH GAMBAR 4 */}
           <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
             <table style={{ ...styles.table, margin: 0 }}>
               <thead>
@@ -659,7 +659,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               </thead>
               <tbody>
                 {displayDisposedRecords.map((item, idx) => {
-                  const kg = (item.kilogram_kimia || 0) + (item.lain_lain_kg || 0) + (item.peralatan_kaca_kg || 0);
+                  const kg = getRecordWeightKg(item);
                   const mt = (kg / 1000).toFixed(4);
                   return (
                     <tr key={item.id || idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
@@ -672,7 +672,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
                       </td>
                       <td style={styles.td}>
                         <div style={{ fontWeight: 'bold', color: '#1e293b' }}>{item.nama_buangan || '-'}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>{item.bangunan || item.fakulti || 'SERI'}</div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>{item.bangunan || item.fakulti || 'FST'}</div>
                       </td>
                       <td style={{ ...styles.td, textAlign: 'center', fontWeight: 'bold', color: '#2563eb' }}>{mt} MT</td>
                       <td style={{ ...styles.td, textAlign: 'center', fontWeight: 'bold', color: '#dc2626' }}>RM 204.32</td>
@@ -686,7 +686,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
       )}
 
       {/* ========================================================================= */}
-      {/* MODUL 4: PAPARAN VISUAL EKSEKUTIF (ROSH) - RUJUKAN GAMBAR 5 */}
+      {/* MODUL 4: PAPARAN VISUAL EKSEKUTIF (ROSH) - DINAMIK SEPENUHNYA */}
       {/* ========================================================================= */}
       {activeSubTab === 'VISUAL' && (
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid #cbd5e1' }}>
@@ -709,9 +709,9 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* 4 KAD KPI GAMBAR 5 */}
+          {/* 4 KAD KPI DINAMIK */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '25px' }}>
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '40px', height: '40px', backgroundColor: '#2563eb', color: '#fff', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '18px' }}>🎒</div>
               <div>
                 <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b' }}>JUMLAH SISA KAMPUS</div>
@@ -719,7 +719,7 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '40px', height: '40px', backgroundColor: '#059669', color: '#fff', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '18px' }}>🍃</div>
               <div>
                 <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b' }}>JEJAK KARBON ($CO_2e$)</div>
@@ -727,15 +727,15 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '40px', height: '40px', backgroundColor: '#f59e0b', color: '#fff', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '18px' }}>🏢</div>
               <div>
                 <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b' }}>PTJ PENJANA AKTIF</div>
-                <div style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>{activePtjs} <span style={{ fontSize: '12px' }}>Pusat</span></div>
+                <div style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>{ptjList.length} <span style={{ fontSize: '12px' }}>Pusat</span></div>
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '40px', height: '40px', backgroundColor: '#ef4444', color: '#fff', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '18px' }}>⚠️</div>
               <div>
                 <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b' }}>KOD SISA DOMINAN</div>
@@ -744,27 +744,29 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
             </div>
           </div>
 
-          {/* VISUAL GRAF GAMBAR 5 */}
+          {/* VISUAL GRAF DINAMIK */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '25px' }}>
-            {/* GRAF 1: TREND PENJANAAN SISA UKM */}
+            {/* GRAF 1: TREND PENJANAAN SISA UKM BULANAN DINAMIK */}
             <div style={{ backgroundColor: '#fafafa', border: '1px solid #f1f5f9', padding: '16px', borderRadius: '10px' }}>
               <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: '#334155' }}>📈 Trend Penjanaan Sisa UKM (Kg)</h4>
               <div style={{ display: 'flex', alignItems: 'flex-end', height: '180px', gap: '8px', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px' }}>
                 {months.map((m, idx) => {
-                  const val = monthlyVisualKg[idx];
-                  const maxV = 14000;
-                  const pct = (val / maxV) * 100;
+                  const val = monthlyKg[idx];
+                  const pct = maxMonthlyKg > 0 ? (val / maxMonthlyKg) * 100 : 0;
                   return (
                     <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 'bold', color: '#64748b', marginBottom: '2px' }}>
+                        {val > 0 ? val.toFixed(1) : ''}
+                      </span>
                       <div
                         style={{
                           width: '100%',
                           maxWidth: '24px',
-                          height: `${Math.max(pct, 4)}%`,
+                          height: `${Math.max(pct, val > 0 ? 6 : 0)}%`,
                           backgroundColor: '#3b82f6',
                           borderRadius: '4px 4px 0 0'
                         }}
-                        title={`${m}: ${val} Kg`}
+                        title={`${m}: ${val.toFixed(2)} Kg`}
                       />
                       <span style={{ fontSize: '10px', color: '#64748b', marginTop: '6px' }}>{m}</span>
                     </div>
@@ -773,45 +775,53 @@ export default function RoshView({ allWasteRecords = [], profile, handleVerifySt
               </div>
             </div>
 
-            {/* GRAF 2: PECAHAN KOD SW (DONUT REPRESENTATION) */}
+            {/* GRAF 2: PECAHAN KOD SW DINAMIK */}
             <div style={{ backgroundColor: '#fafafa', border: '1px solid #f1f5f9', padding: '16px', borderRadius: '10px' }}>
               <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: '#334155' }}>🍕 Pecahan Mengikut Kod SW</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
-                {['SW 322', 'SW 430', 'SW 402', 'SW 409', 'SW 421', 'SW 206'].map((sw, i) => {
-                  const cols = ['#f59e0b', '#2563eb', '#ef4444', '#10b981', '#8b5cf6', '#ea580c'];
-                  return (
-                    <div key={sw} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '10px', height: '10px', backgroundColor: cols[i], borderRadius: '2px', display: 'inline-block' }} />
-                        {sw}
-                      </span>
-                      <span style={{ fontWeight: 'bold' }}>{35 - i * 5}%</span>
-                    </div>
-                  );
-                })}
+                {swSorted.length === 0 ? (
+                  <p style={{ color: '#94a3b8' }}>Tiada data Kod SW.</p>
+                ) : (
+                  swSorted.map(([swCode, swKg], i) => {
+                    const cols = ['#f59e0b', '#2563eb', '#ef4444', '#10b981', '#8b5cf6', '#ea580c', '#06b6d4'];
+                    const percent = totalWeightKg > 0 ? Math.round((swKg / totalWeightKg) * 100) : 0;
+                    return (
+                      <div key={swCode} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ width: '10px', height: '10px', backgroundColor: cols[i % cols.length], borderRadius: '2px', display: 'inline-block' }} />
+                          {swCode}
+                        </span>
+                        <span style={{ fontWeight: 'bold' }}>{percent}% ({swKg.toFixed(1)} kg)</span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
 
-          {/* GRAF 3: PERBANDINGAN PTJ */}
+          {/* GRAF 3: PERBANDINGAN PTJ DINAMIK */}
           <div style={{ backgroundColor: '#fafafa', border: '1px solid #f1f5f9', padding: '16px', borderRadius: '10px' }}>
             <h4 style={{ margin: '0 0 15px 0', fontSize: '13px', color: '#334155' }}>🏢 Perbandingan Penjanaan Sisa Mengikut PTJ (Kg)</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {[
-                { name: 'FST', kg: 26500, color: '#059669' },
-                { name: 'SERI', kg: 1200, color: '#059669' },
-                { name: 'INBIOSIS', kg: 800, color: '#059669' }
-              ].map((ptj) => (
-                <div key={ptj.name}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '3px' }}>
-                    <span>{ptj.name}</span>
-                    <span>{ptj.kg} Kg</span>
-                  </div>
-                  <div style={{ width: '100%', height: '14px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ width: `${(ptj.kg / 30000) * 100}%`, height: '100%', backgroundColor: ptj.color }} />
-                  </div>
-                </div>
-              ))}
+              {ptjSorted.length === 0 ? (
+                <p style={{ fontSize: '12px', color: '#94a3b8' }}>Tiada data PTj.</p>
+              ) : (
+                ptjSorted.map(([ptjName, ptjKg]) => {
+                  const widthPct = maxPtjKg > 0 ? (ptjKg / maxPtjKg) * 100 : 0;
+                  return (
+                    <div key={ptjName}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '3px' }}>
+                        <span>{ptjName}</span>
+                        <span>{ptjKg.toFixed(2)} Kg</span>
+                      </div>
+                      <div style={{ width: '100%', height: '14px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.max(widthPct, 2)}%`, height: '100%', backgroundColor: '#059669' }} />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

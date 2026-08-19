@@ -9,8 +9,8 @@ const ALL_SW_CODES = [
 ];
 
 export default function PenyelarasView({ profile, facultyWasteRecords = [], handleVerifyStatus, setActiveTab }) {
-  const [showVisuals, setShowVisuals] = useState(false);
-  const [showDrumCalc, setShowDrumCalc] = useState(false);
+  // STATE NAVIGASI 3 MODUL UTAMA: 'SEMAKAN' | 'VISUAL' | 'DRUM'
+  const [activeSubTab, setActiveSubTab] = useState('SEMAKAN');
 
   // DRUM CALCULATION FILTER STATES
   const [drumTarikh, setDrumTarikh] = useState('');
@@ -65,14 +65,11 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
     return true;
   });
 
-  // REKOD JADUAL YANG BELUM DISAHKAN PENYELARAS
   const unapprovedTableRecords = filteredTableRecords.filter((r) => !isApprovedByPenyelarasStatus(r.status));
 
-  // DROPDOWN OPTIONS UNTUK PENAPIS JADUAL
   const tableTarikhOptions = [...new Set(strictFacultyRecords.map((r) => r.tarikh_pelupusan).filter(Boolean))];
   const tableBangunanOptions = [...new Set(strictFacultyRecords.map((r) => r.bangunan).filter(Boolean))];
 
-  // LOGIK TANDAKAN REKOD JADUAL PENYELARAS (DISABIKAN JIKA TELAH DISAHKAN)
   function toggleSelectTableWaste(id_sisa, isApproved) {
     if (!isPenyelarasApprover || isApproved) return;
     if (selectedTableIds.includes(id_sisa)) {
@@ -94,7 +91,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
     }
   }
 
-  // FUNGSI PENGESAHAN KELOMPOK (BATCH APPROVAL PENYELARAS BT)
   async function handleBatchApprovePenyelaras() {
     if (!isPenyelarasApprover) {
       alert(`Akses Terhad: Pengguna peranan ${userRole} tidak dibenarkan mengesahkan borang Penyelaras BT.`);
@@ -154,7 +150,6 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
     setDrumBangunan('');
   }
 
-  // 5. AGREGASI DATA MENGIKUT KOD SW UNTUK PENGIRAAN DRUM
   const swCodeList = [...new Set([...ALL_SW_CODES, ...drumFilteredRecords.map((r) => r.kod_sw).filter(Boolean)])].sort();
 
   let totalGrandDrums = 0;
@@ -175,7 +170,7 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
     return { code, b25, b40, kg, estDrums };
   });
 
-  // 6. AGREGASI DATA UNTUK GRAF VISUAL
+  // 5. AGREGASI DATA UNTUK GRAF VISUAL
   const monthsList = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
   const monthlyKg = Array(12).fill(0);
   strictFacultyRecords.forEach((r) => {
@@ -233,211 +228,349 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
         </div>
       )}
 
-      {/* 4 KAD STATISTIK UTAMA (FAKULTI PENYELARAS SAHAJA) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-        <div style={{ backgroundColor: '#0d6efd', color: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🎒</span> JUM. BERAT SISA (KG)
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '800', margin: '8px 0 2px 0' }}>{totalWeightKg.toFixed(2)}</div>
-          <div style={{ fontSize: '11px', opacity: 0.9 }}>Terkumpul tahun ini ({userFaculty})</div>
-        </div>
-
-        <div style={{ backgroundColor: '#198754', color: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🧪</span> JUM. BOTOL (2.5L & 4L)
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '800', margin: '8px 0 2px 0' }}>{totalBottles}</div>
-          <div style={{ fontSize: '11px', opacity: 0.9 }}>Sedia untuk dilupus ({userFaculty})</div>
-        </div>
-
-        <div style={{ backgroundColor: '#ffc107', color: '#0f172a', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🛢️</span> ANGGARAN DRUM
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '800', margin: '8px 0 2px 0' }}>{drumsNeeded}</div>
-          <div style={{ fontSize: '11px', opacity: 0.85 }}>Keperluan logistik ROSH</div>
-        </div>
-
-        <div style={{ backgroundColor: '#dc3545', color: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>⚠️</span> STATUS AMARAN
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '800', margin: '8px 0 2px 0' }}>{warningStatusCount}</div>
-          <div style={{ fontSize: '11px', opacity: 0.9 }}>Sisa melebihi 120 hari</div>
-        </div>
-      </div>
-
-      {/* TWO ACTION BUTTONS: PAPARAN VISUAL & PENGIRAAN DRUM */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+      {/* 3 BUTANG MODUL UTAMA PENYELARAS BT */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '20px' }}>
         <button
-          onClick={() => setShowVisuals(!showVisuals)}
-          style={{
-            width: '100%',
-            padding: '14px',
-            backgroundColor: showVisuals ? '#0284c7' : '#ffffff',
-            color: showVisuals ? '#ffffff' : '#0284c7',
-            border: '2px solid #0284c7',
-            borderRadius: '10px',
-            fontSize: '15px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '10px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-            transition: 'all 0.2s ease'
-          }}
+          onClick={() => setActiveSubTab('SEMAKAN')}
+          style={navSubTabStyle(activeSubTab === 'SEMAKAN', '#0056b3')}
         >
-          <span>📈</span> Paparan Visual {showVisuals ? '▲ (Sembunyi Graf Analitik)' : '▼ (Papar Graf Analitik)'}
+          <span>📋</span> Semakan Permohonan Sisa Fakulti ({userFaculty})
         </button>
 
         <button
-          onClick={() => setShowDrumCalc(!showDrumCalc)}
-          style={{
-            width: '100%',
-            padding: '14px',
-            backgroundColor: showDrumCalc ? '#d97706' : '#ffffff',
-            color: showDrumCalc ? '#ffffff' : '#d97706',
-            border: '2px solid #d97706',
-            borderRadius: '10px',
-            fontSize: '15px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '10px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-            transition: 'all 0.2s ease'
-          }}
+          onClick={() => setActiveSubTab('VISUAL')}
+          style={navSubTabStyle(activeSubTab === 'VISUAL', '#0284c7')}
         >
-          <span>🧮</span> Pengiraan Drum {showDrumCalc ? '▲ (Sembunyi Kapasiti Drum)' : '▼ (Papar Kapasiti Drum)'}
+          <span>📈</span> Paparan Visual (Analitik Fakulti)
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('DRUM')}
+          style={navSubTabStyle(activeSubTab === 'DRUM', '#d97706')}
+        >
+          <span>🧮</span> Pengiraan Drum (Kapasiti Drum)
         </button>
       </div>
 
-      {/* SEKSYEN GRAF ANALITIK */}
-      {showVisuals && (
-        <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '25px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ margin: '0 0 20px 0', color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>📉</span> Dashboard Analitik PTj ({userFaculty})
-          </h3>
+      {/* ========================================================================= */}
+      {/* MODUL 1: SEMAKAN PERMOHONAN SISA FAKULTI (JADUAL UTAMA) */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'SEMAKAN' && (
+        <div>
+          {/* PENAPIS SEMAKAN SISA */}
+          <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🔍</span> Penapis Semakan Sisa ({userFaculty})
+              </h3>
+              {(filterTarikh || filterBangunan) && (
+                <button
+                  onClick={() => { setFilterTarikh(''); setFilterBangunan(''); }}
+                  style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  ✕ Set Semula Tapis
+                </button>
+              )}
+            </div>
 
-          <div style={{ marginBottom: '30px', padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-            <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>📈 Trend Penjanaan Sisa Bulanan (Kg)</h4>
-            <div style={{ display: 'flex', alignItems: 'flex-end', height: '180px', gap: '8px', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px' }}>
-              {monthsList.map((m, idx) => {
-                const kgVal = monthlyKg[idx];
-                const heightPercent = maxMonthlyKg > 0 ? (kgVal / maxMonthlyKg) * 100 : 0;
-                return (
-                  <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', marginBottom: '4px' }}>
-                      {kgVal > 0 ? kgVal.toFixed(1) : ''}
-                    </span>
-                    <div
-                      style={{
-                        width: '100%',
-                        maxWidth: '32px',
-                        height: `${Math.max(heightPercent, kgVal > 0 ? 6 : 0)}%`,
-                        backgroundColor: '#60a5fa',
-                        borderRadius: '4px 4px 0 0',
-                        transition: 'height 0.3s ease'
-                      }}
-                      title={`${m}: ${kgVal.toFixed(2)} Kg`}
-                    />
-                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', marginTop: '6px' }}>{m}</span>
-                  </div>
-                );
-              })}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              <div>
+                <label style={filterLabelStyle}>Tarikh Pelupusan</label>
+                <select value={filterTarikh} onChange={(e) => setFilterTarikh(e.target.value)} style={filterSelectStyle}>
+                  <option value="">Semua Tarikh</option>
+                  {tableTarikhOptions.map((t) => (
+                    <option key={t} value={t}>{formatMalayDate(t)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={filterLabelStyle}>Bangunan</label>
+                <select value={filterBangunan} onChange={(e) => setFilterBangunan(e.target.value)} style={filterSelectStyle}>
+                  <option value="">Semua Bangunan</option>
+                  {tableBangunanOptions.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-            <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-              <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>📊 Penjanaan Sisa Mengikut Kod SW (Kg)</h4>
-              {swSorted.length === 0 ? (
-                <p style={{ fontSize: '12px', color: '#94a3b8' }}>Tiada data Kod SW.</p>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'flex-end', height: '160px', gap: '8px', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px' }}>
-                  {swSorted.map(([code, kgVal]) => {
-                    const heightPercent = maxSwKg > 0 ? (kgVal / maxSwKg) * 100 : 0;
-                    return (
-                      <div key={code} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                        <span style={{ fontSize: '9px', fontWeight: 'bold', color: '#64748b', marginBottom: '2px' }}>{kgVal.toFixed(1)}</span>
-                        <div
-                          style={{
-                            width: '100%',
-                            maxWidth: '28px',
-                            height: `${Math.max(heightPercent, 8)}%`,
-                            backgroundColor: '#818cf8',
-                            borderRadius: '4px 4px 0 0'
-                          }}
-                          title={`${code}: ${kgVal.toFixed(2)} Kg`}
+          {/* JADUAL SEMAKAN & PENGESAHAN PENYELARAS BT */}
+          <div style={styles.card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0, color: '#0056b3' }}>Semakan Permohonan Sisa Fakulti ({userFaculty})</h3>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                Memaparkan <strong>{filteredTableRecords.length}</strong> daripada {strictFacultyRecords.length} rekod sisa
+              </span>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8f9fa' }}>
+                    {isPenyelarasApprover && (
+                      <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={allUnapprovedSelected}
+                          onChange={toggleSelectAllTable}
+                          disabled={unapprovedTableRecords.length === 0}
+                          title={unapprovedTableRecords.length === 0 ? "Tiada rekod untuk disahkan" : "Pilih Semua Sisa Belum Disahkan"}
+                          style={{ cursor: unapprovedTableRecords.length === 0 ? 'not-allowed' : 'pointer' }}
                         />
-                        <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#334155', marginTop: '4px', transform: 'rotate(-30deg)', transformOrigin: 'top left' }}>{code}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      </th>
+                    )}
+                    <th style={styles.th}>Bil.</th>
+                    <th style={styles.th}>ID Sisa</th>
+                    <th style={styles.th}>Makmal</th>
+                    <th style={styles.th}>Kod SW</th>
+                    <th style={styles.th}>Nama Buangan</th>
+                    <th style={styles.th}>Kuantiti</th>
+                    <th style={styles.th}>Tempoh Simpanan</th>
+                    <th style={styles.th}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTableRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={isPenyelarasApprover ? 9 : 8} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                        Tiada rekod sisa fakulti dijumpai mengikut penapis semasa.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredTableRecords.map((item, idx) => {
+                      const storageDays = calculateStorageDays(item.created_at || item.tarikh_pelupusan);
+                      const isApproved = isApprovedByPenyelarasStatus(item.status);
+                      const isChecked = selectedTableIds.includes(item.id_sisa);
+
+                      return (
+                        <tr key={item.id || item.id_sisa || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked && !isApproved ? '#f0f7ff' : isApproved ? '#fafafa' : '#fff' }}>
+                          {isPenyelarasApprover && (
+                            <td style={{ ...styles.td, textAlign: 'center' }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked && !isApproved}
+                                disabled={isApproved}
+                                onChange={() => toggleSelectTableWaste(item.id_sisa, isApproved)}
+                                title={isApproved ? "Rekod ini telah disahkan oleh Penyelaras BT" : "Tandakan untuk pengesahan"}
+                                style={{ cursor: isApproved ? 'not-allowed' : 'pointer' }}
+                              />
+                            </td>
+                          )}
+                          <td style={styles.td}>{idx + 1}</td>
+                          <td style={styles.td}><strong>{item.id_sisa}</strong></td>
+                          <td style={styles.td}>{item.nama_makmal || '-'}</td>
+                          <td style={styles.td}><strong>{item.kod_sw}</strong></td>
+                          <td style={styles.td}>{item.nama_buangan}</td>
+                          <td style={styles.td}>{getQuantityText(item)}</td>
+                          <td style={styles.td}>
+                            <strong style={{ color: storageDays > 120 ? '#dc3545' : '#1e293b' }}>
+                              ⏱️ {storageDays} Hari
+                            </strong>
+                          </td>
+                          <td style={styles.td}>
+                            <span style={getStatusBadgeStyle(item.status)}>{item.status}</span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-              <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🍕 Kategori Makmal</h4>
-              {Object.keys(catMap).length === 0 ? (
-                <p style={{ fontSize: '12px', color: '#94a3b8' }}>Tiada data kategori makmal.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {Object.entries(catMap).map(([cat, count], idx) => {
-                    const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
-                    const bgCol = colors[idx % colors.length];
-                    const percent = Math.round((count / strictFacultyRecords.length) * 100);
-                    return (
-                      <div key={cat}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#334155' }}>
-                          <span>{cat}</span>
-                          <span>{count} Rekod ({percent}%)</span>
-                        </div>
-                        <div style={{ width: '100%', height: '10px', backgroundColor: '#e2e8f0', borderRadius: '5px', overflow: 'hidden' }}>
-                          <div style={{ width: `${percent}%`, height: '100%', backgroundColor: bgCol }} />
-                        </div>
-                      </div>
-                    );
-                  })}
+            {/* BAR TINDAKAN BAWAH PENGESAHAN KELOMPOK PENYELARAS BT */}
+            {filteredTableRecords.length > 0 && isPenyelarasApprover && (
+              <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#eef2f7', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
+                  📌 Terpilih: <span style={{ color: '#0056b3' }}>{selectedTableIds.length}</span> daripada {unapprovedTableRecords.length} rekod sisa yang belum disahkan
                 </div>
-              )}
-            </div>
-          </div>
 
-          <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-            <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🏢 Penjanaan Sisa Tertinggi Mengikut Bangunan (Kg)</h4>
-            {bngSorted.length === 0 ? (
-              <p style={{ fontSize: '12px', color: '#94a3b8' }}>Tiada data bangunan.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {bngSorted.map(([bngName, kgVal]) => {
-                  const widthPercent = maxBngKg > 0 ? (kgVal / maxBngKg) * 100 : 0;
-                  return (
-                    <div key={bngName}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '3px', color: '#334155' }}>
-                        <span>{bngName}</span>
-                        <span>{kgVal.toFixed(2)} Kg</span>
-                      </div>
-                      <div style={{ width: '100%', height: '12px', backgroundColor: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.max(widthPercent, 2)}%`, height: '100%', backgroundColor: '#fb923c' }} />
-                      </div>
-                    </div>
-                  );
-                })}
+                <button
+                  onClick={handleBatchApprovePenyelaras}
+                  disabled={selectedTableIds.length === 0}
+                  style={{
+                    ...styles.button,
+                    backgroundColor: selectedTableIds.length > 0 ? '#6f42c1' : '#94a3b8',
+                    padding: '10px 20px',
+                    fontSize: '13px',
+                    cursor: selectedTableIds.length > 0 ? 'pointer' : 'not-allowed',
+                    opacity: selectedTableIds.length > 0 ? 1 : 0.6,
+                    width: 'auto'
+                  }}
+                >
+                  ✅ Sahkan Permohonan Terpilih (Penyelaras BT)
+                </button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* SEKSYEN PENGIRAAN KAPASITI DRUM */}
-      {showDrumCalc && (
+      {/* ========================================================================= */}
+      {/* MODUL 2: PAPARAN VISUAL (ANALITIK FAKULTI & KAD STATISTIK) */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'VISUAL' && (
+        <div>
+          {/* 4 KAD STATISTIK UTAMA */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+            <div style={{ backgroundColor: '#0d6efd', color: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🎒</span> JUM. BERAT SISA (KG)
+              </div>
+              <div style={{ fontSize: '32px', fontWeight: '800', margin: '8px 0 2px 0' }}>{totalWeightKg.toFixed(2)}</div>
+              <div style={{ fontSize: '11px', opacity: 0.9 }}>Terkumpul tahun ini ({userFaculty})</div>
+            </div>
+
+            <div style={{ backgroundColor: '#198754', color: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🧪</span> JUM. BOTOL (2.5L & 4L)
+              </div>
+              <div style={{ fontSize: '32px', fontWeight: '800', margin: '8px 0 2px 0' }}>{totalBottles}</div>
+              <div style={{ fontSize: '11px', opacity: 0.9 }}>Sedia untuk dilupus ({userFaculty})</div>
+            </div>
+
+            <div style={{ backgroundColor: '#ffc107', color: '#0f172a', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🛢️</span> ANGGARAN DRUM
+              </div>
+              <div style={{ fontSize: '32px', fontWeight: '800', margin: '8px 0 2px 0' }}>{drumsNeeded}</div>
+              <div style={{ fontSize: '11px', opacity: 0.85 }}>Keperluan logistik ROSH</div>
+            </div>
+
+            <div style={{ backgroundColor: '#dc3545', color: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>⚠️</span> STATUS AMARAN
+              </div>
+              <div style={{ fontSize: '32px', fontWeight: '800', margin: '8px 0 2px 0' }}>{warningStatusCount}</div>
+              <div style={{ fontSize: '11px', opacity: 0.9 }}>Sisa melebihi 120 hari</div>
+            </div>
+          </div>
+
+          {/* SEKSYEN GRAF ANALITIK */}
+          <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '25px', border: '1px solid #e2e8f0' }}>
+            <h3 style={{ margin: '0 0 20px 0', color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>📉</span> Dashboard Analitik PTj ({userFaculty})
+            </h3>
+
+            <div style={{ marginBottom: '30px', padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+              <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>📈 Trend Penjanaan Sisa Bulanan (Kg)</h4>
+              <div style={{ display: 'flex', alignItems: 'flex-end', height: '180px', gap: '8px', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px' }}>
+                {monthsList.map((m, idx) => {
+                  const kgVal = monthlyKg[idx];
+                  const heightPercent = maxMonthlyKg > 0 ? (kgVal / maxMonthlyKg) * 100 : 0;
+                  return (
+                    <div key={m} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#64748b', marginBottom: '4px' }}>
+                        {kgVal > 0 ? kgVal.toFixed(1) : ''}
+                      </span>
+                      <div
+                        style={{
+                          width: '100%',
+                          maxWidth: '32px',
+                          height: `${Math.max(heightPercent, kgVal > 0 ? 6 : 0)}%`,
+                          backgroundColor: '#60a5fa',
+                          borderRadius: '4px 4px 0 0',
+                          transition: 'height 0.3s ease'
+                        }}
+                        title={`${m}: ${kgVal.toFixed(2)} Kg`}
+                      />
+                      <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', marginTop: '6px' }}>{m}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+              <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>📊 Penjanaan Sisa Mengikut Kod SW (Kg)</h4>
+                {swSorted.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: '#94a3b8' }}>Tiada data Kod SW.</p>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'flex-end', height: '160px', gap: '8px', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px' }}>
+                    {swSorted.map(([code, kgVal]) => {
+                      const heightPercent = maxSwKg > 0 ? (kgVal / maxSwKg) * 100 : 0;
+                      return (
+                        <div key={code} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                          <span style={{ fontSize: '9px', fontWeight: 'bold', color: '#64748b', marginBottom: '2px' }}>{kgVal.toFixed(1)}</span>
+                          <div
+                            style={{
+                              width: '100%',
+                              maxWidth: '28px',
+                              height: `${Math.max(heightPercent, 8)}%`,
+                              backgroundColor: '#818cf8',
+                              borderRadius: '4px 4px 0 0'
+                            }}
+                            title={`${code}: ${kgVal.toFixed(2)} Kg`}
+                          />
+                          <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#334155', marginTop: '4px', transform: 'rotate(-30deg)', transformOrigin: 'top left' }}>{code}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🍕 Kategori Makmal</h4>
+                {Object.keys(catMap).length === 0 ? (
+                  <p style={{ fontSize: '12px', color: '#94a3b8' }}>Tiada data kategori makmal.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {Object.entries(catMap).map(([cat, count], idx) => {
+                      const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+                      const bgCol = colors[idx % colors.length];
+                      const percent = Math.round((count / strictFacultyRecords.length) * 100);
+                      return (
+                        <div key={cat}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#334155' }}>
+                            <span>{cat}</span>
+                            <span>{count} Rekod ({percent}%)</span>
+                          </div>
+                          <div style={{ width: '100%', height: '10px', backgroundColor: '#e2e8f0', borderRadius: '5px', overflow: 'hidden' }}>
+                            <div style={{ width: `${percent}%`, height: '100%', backgroundColor: bgCol }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+              <h4 style={{ margin: '0 0 15px 0', color: '#334155', fontSize: '14px' }}>🏢 Penjanaan Sisa Tertinggi Mengikut Bangunan (Kg)</h4>
+              {bngSorted.length === 0 ? (
+                <p style={{ fontSize: '12px', color: '#94a3b8' }}>Tiada data bangunan.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {bngSorted.map(([bngName, kgVal]) => {
+                    const widthPercent = maxBngKg > 0 ? (kgVal / maxBngKg) * 100 : 0;
+                    return (
+                      <div key={bngName}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', marginBottom: '3px', color: '#334155' }}>
+                          <span>{bngName}</span>
+                          <span>{kgVal.toFixed(2)} Kg</span>
+                        </div>
+                        <div style={{ width: '100%', height: '12px', backgroundColor: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.max(widthPercent, 2)}%`, height: '100%', backgroundColor: '#fb923c' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODUL 3: PENGIRAAN KAPASITI DRUM */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'DRUM' && (
         <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '25px', border: '1px solid #cbd5e1' }}>
           <h3 style={{ margin: '0 0 15px 0', color: '#0f172a', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>🧮</span> Pengiraan Kapasiti Drum (Penyelaras BT)
@@ -532,160 +665,30 @@ export default function PenyelarasView({ profile, facultyWasteRecords = [], hand
           </div>
         </div>
       )}
-
-      {/* FILTER BAR CONTAINER FOR DATA TABLE */}
-      <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-          <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🔍</span> Penapis Semakan Sisa ({userFaculty})
-          </h3>
-          {(filterTarikh || filterBangunan) && (
-            <button
-              onClick={() => { setFilterTarikh(''); setFilterBangunan(''); }}
-              style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
-            >
-              ✕ Set Semula Tapis
-            </button>
-          )}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-          <div>
-            <label style={filterLabelStyle}>Tarikh Pelupusan</label>
-            <select value={filterTarikh} onChange={(e) => setFilterTarikh(e.target.value)} style={filterSelectStyle}>
-              <option value="">Semua Tarikh</option>
-              {tableTarikhOptions.map((t) => (
-                <option key={t} value={t}>{formatMalayDate(t)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={filterLabelStyle}>Bangunan</label>
-            <select value={filterBangunan} onChange={(e) => setFilterBangunan(e.target.value)} style={filterSelectStyle}>
-              <option value="">Semua Bangunan</option>
-              {tableBangunanOptions.map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* JADUAL SEMAKAN & PENGESAHAN PENYELARAS BT */}
-      <div style={styles.card}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-          <h3 style={{ margin: 0, color: '#0056b3' }}>Semakan Permohonan Sisa Fakulti ({userFaculty})</h3>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>
-            Memaparkan <strong>{filteredTableRecords.length}</strong> daripada {strictFacultyRecords.length} rekod sisa
-          </span>
-        </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table style={styles.table}>
-            <thead>
-              <tr style={{ backgroundColor: '#f8f9fa' }}>
-                {isPenyelarasApprover && (
-                  <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
-                    <input
-                      type="checkbox"
-                      checked={allUnapprovedSelected}
-                      onChange={toggleSelectAllTable}
-                      disabled={unapprovedTableRecords.length === 0}
-                      title={unapprovedTableRecords.length === 0 ? "Tiada rekod untuk disahkan" : "Pilih Semua Sisa Belum Disahkan"}
-                      style={{ cursor: unapprovedTableRecords.length === 0 ? 'not-allowed' : 'pointer' }}
-                    />
-                  </th>
-                )}
-                <th style={styles.th}>Bil.</th>
-                <th style={styles.th}>ID Sisa</th>
-                <th style={styles.th}>Makmal</th>
-                <th style={styles.th}>Kod SW</th>
-                <th style={styles.th}>Nama Buangan</th>
-                <th style={styles.th}>Kuantiti</th>
-                <th style={styles.th}>Tempoh Simpanan</th>
-                <th style={styles.th}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTableRecords.length === 0 ? (
-                <tr>
-                  <td colSpan={isPenyelarasApprover ? 9 : 8} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-                    Tiada rekod sisa fakulti dijumpai mengikut penapis semasa.
-                  </td>
-                </tr>
-              ) : (
-                filteredTableRecords.map((item, idx) => {
-                  const storageDays = calculateStorageDays(item.created_at || item.tarikh_pelupusan);
-                  const isApproved = isApprovedByPenyelarasStatus(item.status);
-                  const isChecked = selectedTableIds.includes(item.id_sisa);
-
-                  return (
-                    <tr key={item.id || item.id_sisa || idx} style={{ borderBottom: '1px solid #eee', backgroundColor: isChecked && !isApproved ? '#f0f7ff' : isApproved ? '#fafafa' : '#fff' }}>
-                      {isPenyelarasApprover && (
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
-                          <input
-                            type="checkbox"
-                            checked={isChecked && !isApproved}
-                            disabled={isApproved}
-                            onChange={() => toggleSelectTableWaste(item.id_sisa, isApproved)}
-                            title={isApproved ? "Rekod ini telah disahkan" : "Tandakan untuk pengesahan"}
-                            style={{ cursor: isApproved ? 'not-allowed' : 'pointer' }}
-                          />
-                        </td>
-                      )}
-                      <td style={styles.td}>{idx + 1}</td>
-                      <td style={styles.td}><strong>{item.id_sisa}</strong></td>
-                      <td style={styles.td}>{item.nama_makmal || '-'}</td>
-                      <td style={styles.td}><strong>{item.kod_sw}</strong></td>
-                      <td style={styles.td}>{item.nama_buangan}</td>
-                      <td style={styles.td}>{getQuantityText(item)}</td>
-                      <td style={styles.td}>
-                        <strong style={{ color: storageDays > 120 ? '#dc3545' : '#1e293b' }}>
-                          ⏱️ {storageDays} Hari
-                        </strong>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={getStatusBadgeStyle(item.status)}>{item.status}</span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* BOTTOM ACTION BAR FOR PENYELARAS BATCH APPROVAL */}
-        {filteredTableRecords.length > 0 && isPenyelarasApprover && (
-          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#eef2f7', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155' }}>
-              📌 Terpilih: <span style={{ color: '#0056b3' }}>{selectedTableIds.length}</span> daripada {unapprovedTableRecords.length} rekod sisa yang belum disahkan
-            </div>
-
-            <button
-              onClick={handleBatchApprovePenyelaras}
-              disabled={selectedTableIds.length === 0}
-              style={{
-                ...styles.button,
-                backgroundColor: selectedTableIds.length > 0 ? '#6f42c1' : '#94a3b8',
-                padding: '10px 20px',
-                fontSize: '13px',
-                cursor: selectedTableIds.length > 0 ? 'pointer' : 'not-allowed',
-                opacity: selectedTableIds.length > 0 ? 1 : 0.6,
-                width: 'auto'
-              }}
-            >
-              ✅ Sahkan Permohonan Terpilih (Penyelaras BT)
-            </button>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
 
 // STYLING HELPERS
+function navSubTabStyle(isActive, activeBg) {
+  return {
+    padding: '12px 16px',
+    backgroundColor: isActive ? activeBg : '#ffffff',
+    color: isActive ? '#ffffff' : '#334155',
+    border: `1.5px solid ${isActive ? activeBg : '#cbd5e1'}`,
+    borderRadius: '10px',
+    fontSize: '13px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    boxShadow: isActive ? '0 4px 6px -1px rgba(0,0,0,0.1)' : 'none',
+    transition: 'all 0.2s ease'
+  };
+}
+
 const filterLabelStyle = {
   display: 'block',
   fontSize: '11px',
